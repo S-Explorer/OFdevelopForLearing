@@ -25,6 +25,15 @@ if (finalIter)
         hEqn.solve(mesh.solver(h.select(finalIter)));
 
         fvOptions.correct(h);
+
+        fvScalarMatrix FEqn
+        (
+            fvm::ddt(interF)
+          - fvm::laplacian(Dsolid,interF)
+        );
+        FEqn.relax();
+        fvOptions.constrain(FEqn);
+        FEqn.solve();
     }
 
     thermo.correct();

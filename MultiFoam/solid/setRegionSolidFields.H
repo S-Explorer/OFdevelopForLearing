@@ -1,11 +1,6 @@
 fvMesh& mesh = solidRegions[i];
 solidThermo& thermo = thermos[i];
 
-CompositionModel<heThermo>& mixture = mixSolid[i];
-heThermo& thermo = mixture.thermo();
-basicMultiComponentMixture& composition = thermo.composition();
-PtrList<volScalarField>& Y = composition.Y(); 
-
 tmp<volScalarField> trho = thermo.rho();
 const volScalarField& rho = trho();
 
@@ -34,6 +29,19 @@ if (!thermo.isotropic())
     );
 }
 
+IOdictionary solidtransProperties
+(
+    IOobject
+    (
+        "SolidProperties",
+        runTime.constant(),
+        mesh,
+        IOobject::MUST_READ_IF_MODIFIED,
+        IOobject::NO_WRITE
+    )
+);
+
+dimensionedScalar Dsolid("Dsolid",dimLength*dimLength/dimTime,solidtransProperties.lookup("Dsolid"));
 
 volScalarField& h = thermo.he();
 //add

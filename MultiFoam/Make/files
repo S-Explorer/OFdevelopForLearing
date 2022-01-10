@@ -2,4 +2,4 @@ fluid/compressibleCourantNo.C
 solid/solidRegionDiffNo.C
 kernelPhaseChangeFOAM.C
 
-EXE = $(FOAM_USER_BIN)/kernelPhaseChangeFOAM
+EXE = $(FOAM_USER_APPBIN)/kernelPhaseChangeFOAM

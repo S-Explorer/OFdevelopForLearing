@@ -16,9 +16,6 @@ forAll(solidRegions, i)
     Info<< "*** Reading solid mesh thermophysical properties for region "
         << solidRegions[i].name() << nl << endl;
 
-    Info << "   Adding to thermoSolid\n"<<endl;
-    thermoSolid.set(i,heThermo(fluidRegions[i],world::null));
-
     Info<< "    Adding to thermos\n" << endl;
     thermos.set(i, solidThermo::New(solidRegions[i]));
 
@@ -43,7 +40,7 @@ forAll(solidRegions, i)
             solidRegions[i],
             dimensionedScalar("H2O",dimless,0)
         )
-    )
+    );
     //add the cell volume to the file
     Info<<"     Adding the cell volume \n"<<endl;
     cellVolume.set
@@ -58,11 +55,12 @@ forAll(solidRegions, i)
                 solidRegions[i],
                 IOobject::NO_READ,
                 IOobject::AUTO_WRITE
-            )
+            ),
             solidRegions[i],
             dimensionedScalar("temp",dimless,0)
         )
-    )
+    );
+
     forAll(cellVolume[i],cellI)
     {
         cellVolume[i][cellI] = solidRegions[i].V()[cellI];//add the cell volume to the cellvolume file 

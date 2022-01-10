@@ -6,7 +6,7 @@ PtrList<surfaceScalarField> phiFluid(fluidRegions.size());
 PtrList<uniformDimensionedScalarField> hRefFluid(fluidRegions.size());
 PtrList<volScalarField> ghFluid(fluidRegions.size());
 PtrList<surfaceScalarField> ghfFluid(fluidRegions.size());
-PtrList<compressible::tmurbulenceModel> turbulenceFluid(fluidRegions.size());
+PtrList<compressible::turbulenceModel> turbulenceFluid(fluidRegions.size());
 PtrList<CombustionModel<rhoReactionThermo>> reactionFluid(fluidRegions.size());
 PtrList<volScalarField> p_rghFluid(fluidRegions.size());
 PtrList<radiation::radiationModel> radiation(fluidRegions.size());
