@@ -188,7 +188,68 @@ namespace compressible
         scalarField dmhPhaseChange(patch().size(), Zero);
         scalarField hRemovedMass(patch().size(), Zero);
         scalarField dmhRemoveMass(patch().size(), Zero);
-*/
+*/      
+
+        //get the mass changed 
+        scalarField dm(patch().size(),Zero);
+        //get the enthalpy in mass added
+        scalarField hAddedMass(patch().size(),Zero);
+        //get the unit mass changed enthalpy
+        scalarField dmhAddedMass(patch().size(),Zero);
+
+        if (fluidside_)
+        {
+            const scalar dt = mesh.time().deltaTValue();
+            if (mesh.time().value() != lastTimeStep_)
+            {
+                //swap timestep's value from last time to next time
+                lastTimeStep_ = mesh.time().value();
+                massOld_ = mass_;
+            }
+            //get delta=1/distance cell center to patch
+            const scalarField myDelta_(patch().deltaCoeffs());
+            //get the cp 
+            scalarField cp(patch().size(),Zero);
+            //get the rho
+            scalarField liquidRho(patch().size(),Zero);
+            //get the mass species of the patch
+            const fvPatchScalarField& Ypatch = patch().lookupPatchField<volScalarField,scalar>(specieName_);
+            //get the pressure of the patch
+            const fvPatchScalarField& pPatch = patch().lookupPatchField<volScalarField,scalar>("p");
+            //get the denisty of the patch
+            const fvPatchScalarField& rhoPatch = patch().lookupPatchField<volScalarField,scalar>("rho");
+            //get the turbulent viscosity of the patch 
+            const fvPatchScalarField& nutPatch = patch().lookupPatchField<volScalarField,scalar>("nut");
+            //get the liquid viscosity of the patch (maybe not)
+            //const fvPatchScalarField& muPatch = patch().lookupPatchField<volScalarField,scalar>("thermo:mu");
+            //internal field get Y p rho in cell center *** not the patch
+            const scalarField Yinternal(Ypatch.patchInternalField());
+            const scalarField pInternal(pPatch.patchInternalField());
+            const scalarField rhoInternal(rhoPatch.patchInternalField());
+            //get the face cell's index list
+            const labelList& faceCells = patch().faceCells();
+            //because this env is standred gas-solid ,so the Sc = 0.7
+            const scalar Sc = 0.7;
+
+            //caculate the boundary cell value
+            forAll(Tpatch,faceI)
+            {
+                const scalar Tface = Tpatch[faceI];
+                const scalar Tcell = Tinternal[faceI];
+                const scalar pFace = pPatch[faceI];
+                const scalar pcell = pInternal[faceI];
+                
+            }
+
+
+            
+        }
+
+
+
+
+        mixedFvPatchScalarField::updateCoeffs();
+        
     }
 
 
