@@ -206,6 +206,19 @@ namespace compressible
                 lastTimeStep_ = mesh.time().value();
                 massOld_ = mass_;
             }
+
+            //get the thermo's porperties from the mesh
+            const rhoReactionThermo& thermo = mesh.lookupObject<rhoReactionThermo>(basicThermo::dictName);
+            //get the composition of the thermo model
+            const basicSpecieMixture& composition = thermo.composition();
+            //get the species index of the composition
+            label specieIndex = composition.species()[specieName_];
+
+            //set the mass change temp
+            volScalarField& MassSource = const_cast<volScalarField&>(mesh.lookupObject<volScalarField>(specieName_));
+            //set the energy change temp
+            volScalarField& EnergySource = const_cast<volScalarField&>(mesh.lookupObject<volScalarField>(specieName_));
+
             //get delta=1/distance cell center to patch
             const scalarField myDelta_(patch().deltaCoeffs());
             //get the cp 
@@ -238,6 +251,37 @@ namespace compressible
                 const scalar Tcell = Tinternal[faceI];
                 const scalar pFace = pPatch[faceI];
                 const scalar pcell = pInternal[faceI];
+
+                //const scalar muFace = muPatch[faceI];
+                //set the liquid viscosity in nuCell is 2.95e-5 (kinematic viscosity)?
+                const scalar nuCell = 2.95e-5;
+                //set the rho of face
+                const scalar rhoFace = rhoPatch[faceI];
+                //set the rho of cell
+                const scalar rhoCell = rhoInternal[faceI];
+                //set the liquid (Dynamic viscosity)?
+                const scalar muCell = nuCell * rhoCell;
+                //set the turbulent liquid (Dynamic viscosity)?
+                const scalar mutFace = nutPatch[faceI]*rhoFace;
+                //get the saturation of the cell
+                const scalar pSatCell = liquid_->pv(pFace, Tcell);
+                //get the saturation of the face
+                const scalar pSatFace = liquid_->pv(pFace, Tface);
+                //get the molecular | Molar weight [Kg/Kmol]
+                const scalar Mv = liquid_->W();
+                //get the species of the cell
+                const scalar Ycell = Yinternal[faceI];
+                //get the 1/distance of the face
+                const scalar deltaFace = myDelta[faceI];
+
+                //get the cpacity of the liquid 
+                cp[faceI] = liquid_->Cp(pFace,Tface);
+                //get the phase change energy
+                hPhaseChange[faceI] = liquid_->hl(pFace,Tface);
+                //get the mass energy from phase
+                hRemovedMass[faceI] = composition.Hs(specieIndex,pcell,Tcell);
+
+
                 
             }
 
@@ -249,6 +293,12 @@ namespace compressible
 
 
         mixedFvPatchScalarField::updateCoeffs();
+
+        if (fluidside_)
+        {
+            scalar Qdm = gSum(dm*magSf)
+        }
+        
         
     }
 
