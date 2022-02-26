@@ -80,6 +80,9 @@ private:
     scalarField mKdelta_;
     //phase change energy
     scalarField dmHfg_;
+
+    //average molecular weight for mixture phase
+    scalar Mcomp_;
     //last time step for which mass of fluid film
     scalar lastTimeStep_;
 

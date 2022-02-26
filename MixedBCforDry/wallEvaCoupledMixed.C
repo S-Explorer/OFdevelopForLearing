@@ -52,6 +52,7 @@ namespace compressible
     massOld_(patch().size(),Zero),
     mKdelta_(patch().size(),Zero),
     dmHfg_(patch().size(),Zero),
+    Mcomp_(0.0),
     lastTimeStep_(0)
     {
         this->refValue() = 0.0;
@@ -77,6 +78,7 @@ namespace compressible
     massOld_(patch().size(),Zero),
     mKdelta_(patch().size(),Zero),
     dmHfg_(patch().size(),Zero),
+    Mcomp_(dict.lookupOrDefault<scalar>("carrierMolWeight",0.0)),
     lastTimeStep_(0)
     {
         if (!isA<mappedPatchBase>(this->patch().patch()))
@@ -242,6 +244,7 @@ namespace compressible
             //get the face cell's index list
             const labelList& faceCells = patch().faceCells();
             //because this env is standred gas-solid ,so the Sc = 0.7
+            const scalar Sct = 0.7;
             const scalar Sc = 0.7;
 
             //caculate the boundary cell value
@@ -282,12 +285,47 @@ namespace compressible
                 hRemovedMass[faceI] = composition.Hs(specieIndex,pcell,Tcell);
 
 
-                
+                const scalar YsatFace = pSatFace/pFace*Mv/Mcomp_;
+                const scalar gamma = muCell + mutFace / Sct;
+                //calculate mass add
+                dm[faceI] = gamma * deltaFace * ( Ycell - YsatFace )/(1 - YsatFace);
+                //calculate the liquid rho
+                liquidRho[faceI] = liquid_->rho(pFace,Tface);                
             }
 
+            scalarField &massFluxOut = outputScalarField(specieName_ + "MassFlux",dimMass/dimArea/dimTime,refCast<const fvMesh>(mesh)).boundaryFieldRef()[patch().index()];
+            //define a new avarible to store massflux
+            massFluxOut = dm;
 
-            
-        }
+            //avariable for liquidRho
+            scalarField &rhoLiquid = outputScalarField("densityLiquid",dimDensity,refCast<const fvMesh>(mesh));
+            rhoLiquid = rhoPatch.internalField()*Ypatch.internalField();
+
+            //avariable for gasRho
+            scalarField &rhoGas = outputScalarField("densityGas",dimDensity,refCast<const fvMesh>(mesh));
+
+            //get phase of air from dictfile
+            const volScalarField& Yair = mesh.lookupObject<volScalarField>("AIR");
+
+            rhoGas = rhoPatch.internalField()*Yair;
+            //calculate mass change of phase; and compare with 0,makesure +
+            mass_ = massOld_ * dm * dt * magSf;
+            mass_ = max(mass_,scalar(0));
+            //calculate heat flux change of phase
+            dmHfg_ = dm * hPhaseChange;
+            dHspec = dm * hRemovedMass;
+
+            forAll(faceCells,faceI)
+            {
+                const label cellI = faceCells[faceI];
+                MassSource[cellI] = -dm[faceI] * magSf[faceI] / mesh.cellVolumes()[faceI];
+                EnergySource[cellI] = -dm[faceI] * magSf[faceI] / mesh.cellVolumes()[faceI]*hRemovedMass[faceI];
+            }
+        }//end liquidside calculate
+
+        //calclulate k*delta by resistence
+        scalarField KDeltaNbr;
+
 
 
 
