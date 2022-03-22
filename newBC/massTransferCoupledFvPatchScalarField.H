@@ -138,7 +138,7 @@ public:
 
     virtual void write(Ostream&) const;
 
-}
+};
 
 
 

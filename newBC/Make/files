@@ -1,0 +1,3 @@
+massTransferCoupledFvPatchScalarField.C
+
+LIB = $(FOAM_USER_LIBBIN)/libMassTransferCoupled

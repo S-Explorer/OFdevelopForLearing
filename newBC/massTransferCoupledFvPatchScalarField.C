@@ -282,7 +282,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         //固体侧的密度
         const volScalarField solidRho = solidT.rho();
         //固体侧边界的物料
-        const fvPatchScalarField& YpatchS = nbrPatch.lookupObject<volScalarField,scalar>(specieName_);
+        fvPatchScalarField& YpatchS = nbrPatch.lookupObject<volScalarField,scalar>(specieName_);
         //固体侧边界的密度
         const fvPatchScalarField& rhoPatchS = nbrPatch.lookupObject<volScalarField,scalar>("rho");
         //固体侧边界的温度
@@ -290,7 +290,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         //固体的扩散系数
         const fvPatchScalarField& DPatchS = nbrPatch.lookupObject<volScalarField,scalar>(SolidDivCoe_);
         //固体的边界旁的网格上的物料
-        const scalarField YinternalS(YpatchS.patchInternalField());
+        scalarField YinternalS(YpatchS.patchInternalField());
         //固体侧的边界旁的网格上的密度
         const scalarField rhoInternalS(rhoPatchS.patchInternalField());
         //获取颗粒的网格体积
@@ -312,7 +312,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
 
 
         //获取边界上的组分数据
-        const fvPatchScalarField& Ypatch = patch().lookupPatchField<volScalarField, scalar>(specieName_);
+        fvPatchScalarField& Ypatch = patch().lookupPatchField<volScalarField, scalar>(specieName_);
         //边界的p
         const fvPatchScalarField& pPatch = patch().lookupPatchField<volScalarField, scalar>("p");
         //边界的密度
@@ -323,13 +323,15 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         const fvPatchScalarField& nutPatch = patch().lookupPatchField<volScalarField, scalar>("nut");        
         //提取边界上的数据
         //物料的
-        const scalarField Yinternal(Ypatch.patchInternalField());
+        scalarField Yinternal(Ypatch.patchInternalField());
         //p数据
         const scalarField pInternal(pPatch.patchInternalField());
         //密度数据
         const scalarField rhoInternal(rhoPatch.patchInternalField());
+        //网格的体积
+        const scalarField volumeInternel(patch().cellVolumes());
         //获取单元的标签list
-        const labelList& faceCells = patch().faceCells()；
+        const labelList& faceCells = patch().faceCells();
 
         forAll(Tpatch , faceI)
         {
@@ -393,8 +395,8 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
                 dm[faceI] = volInternalS[faceI]*rhoPatchS[faceI]*YinternalS[faceI]*EvaporationRate(Tcell);
             }
 
-            YpatchS[faceI] = YinternalS[faceI]/(1 - EvaporationRate(Tcell)*deltaCoeffs[faceI]/Ds);
-
+            YpatchS[faceI] = YinternalS[faceI]/(1 - EvaporationRate(Tcell)*deltaCoeffs[faceI]/DPatchS[faceI]);
+            Yinternal[faceI] = dm[faceI]/2.2e-3/rhoPatch[faceI]/volumeInternel[faceI]*deltaFace[faceI] - Ypatch[faceI];
         }
         //计算质量传输量
         mass_ = massOld_ + dm * dt ;
