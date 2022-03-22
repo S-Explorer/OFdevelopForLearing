@@ -32,14 +32,17 @@ License
 #include "surfaceFields.H"
 #include "mappedPatchBase.H"
 #include "fixedGradientFvPatchFields.H"
+
+namespace Foam{
+namespace compressible{
 //计算蒸发率
-scalar massTransferCoupledFvPatchScalarField::EvaporationRate(scalar T)
+scalar massTransferCoupledFvPatchScalarField::EvaporationRate(scalar T) const
 {
     if(T < scalar(430))
     {
         scalar A = 5.13e10;//Amoi   /s
         scalar E = 88000;//Emoi     J/mol
-        scalar R = 8.31446261815//R     J/kmol
+        scalar R = 8.31446261815;//R     J/kmol
         scalar k = A * exp(-1 * E / R / T);
         return k; 
     }else{
@@ -48,7 +51,7 @@ scalar massTransferCoupledFvPatchScalarField::EvaporationRate(scalar T)
     return scalar(0);    
 }
 //导出物理场
-volScalarField& wallCondensationCoupledMixedFvPatchScalarField::outputScalarField
+volScalarField& massTransferCoupledFvPatchScalarField::outputScalarField
 (
     const word& fieldName,
     const dimensionSet& dimSet,
@@ -80,22 +83,21 @@ volScalarField& wallCondensationCoupledMixedFvPatchScalarField::outputScalarFiel
     return const_cast<volScalarField &>(mesh.lookupObject<volScalarField>(fieldName));
 }
 
-massTransferCoupledFvPatchScalarField
+massTransferCoupledFvPatchScalarField::massTransferCoupledFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF
 ):
-mixedFvPathScalarField(p,iF),
+mixedFvPatchScalarField(p,iF),
 temperatureCoupledBase
 (
     patch(),
     "fluidThermo",
     "undefined",
-    "undefined-K",
-    "undefined-alpha"
+    "undefined-K"
 ),
 pName_("p"),
-Uname_("U"),
+UName_("U"),
 rhoName_("rho"),
 muName_("thermo:mu"),
 TnbrName_("T"),
@@ -103,6 +105,7 @@ specieName_("none"),
 sourceTerm_("eva"),
 SolidDivCoe_("Ds"),
 liquid_(nullptr),
+liquidDict_(nullptr),
 mass_(patch().size(), Zero),
 massOld_(patch().size(), Zero),
 Tvap_(0.0),
@@ -112,10 +115,43 @@ mpCpTp_(patch().size(), Zero),
 Mcomp_(0.0),
 fluid_(false),
 cp_(patch().size(), Zero),
-rho_(patch().size(), Zero)
+rho_(patch().size(), Zero),
+lastTimeStep_(0.0)
 {}
 
-massTransferCoupledFvPatchScalarField
+massTransferCoupledFvPatchScalarField::massTransferCoupledFvPatchScalarField
+(
+    const massTransferCoupledFvPatchScalarField& psf,
+    const fvPatch& p,
+    const DimensionedField<scalar, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+):
+mixedFvPatchScalarField(psf,p,iF,mapper),
+temperatureCoupledBase(patch(),psf),
+pName_(psf.pName_),
+UName_(psf.UName_),
+rhoName_(psf.rhoName_),
+muName_(psf.muName_),
+TnbrName_(psf.TnbrName_),
+specieName_(psf.specieName_),
+sourceTerm_(psf.sourceTerm_),
+SolidDivCoe_(psf.SolidDivCoe_),
+liquid_(psf.liquidDict_),
+liquidDict_(psf.liquidDict_),
+mass_(psf.mass_,mapper),
+massOld_(psf.massOld_,mapper),
+Tvap_(psf.Tvap_),
+myKDelta_(psf.myKDelta_,mapper),
+dmHfg_(psf.dmHfg_,mapper),
+mpCpTp_(psf.mpCpTp_,mapper),
+Mcomp_(psf.Mcomp_),
+fluid_(psf.fluid_),
+cp_(psf.cp_,mapper),
+rho_(psf.rho_,mapper),
+lastTimeStep_(psf.lastTimeStep_)
+{}
+
+massTransferCoupledFvPatchScalarField::massTransferCoupledFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
@@ -123,15 +159,16 @@ massTransferCoupledFvPatchScalarField
 ):
 mixedFvPatchScalarField(p, iF),
 temperatureCoupledBase(patch(), dict),
-pName_(dict.getOrDefault<word>("p", "p")),
-UName_(dict.getOrDefault<word>("U", "U")),
-rhoName_(dict.getOrDefault<word>("rho", "rho")),
-muName_(dict.getOrDefault<word>("mu", "thermo:mu")),
-TnbrName_(dict.getOrDefault<word>("Tnbr", "T")),
-specieName_(dict.getOrDefault<word>("specie", "none")),
-sourceTerm_(dict.getOrDefault<word>("sourceTerm","eva")),
-SolidDivCoe_(dict.getOrDefault<word>("solidCoeff","Ds")),
+pName_(dict.lookupOrDefault<word>("p", "p")),
+UName_(dict.lookupOrDefault<word>("U", "U")),
+rhoName_(dict.lookupOrDefault<word>("rho", "rho")),
+muName_(dict.lookupOrDefault<word>("mu", "thermo:mu")),
+TnbrName_(dict.lookupOrDefault<word>("Tnbr", "T")),
+specieName_(dict.lookupOrDefault<word>("specie", "none")),
+sourceTerm_(dict.lookupOrDefault<word>("sourceTerm","eva")),
+SolidDivCoe_(dict.lookupOrDefault<word>("solidCoeff","Ds")),
 liquid_(nullptr),
+liquidDict_(),
 mass_(patch().size(), Zero),
 massOld_(patch().size(), Zero),
 Tvap_(0.0),
@@ -141,8 +178,8 @@ mpCpTp_(patch().size(), Zero),
 Mcomp_(0.0),
 fluid_(false),
 cp_(patch().size(), Zero),
-thickness_(patch().size(), Zero),
-rho_(patch().size(), Zero)
+rho_(patch().size(), Zero),
+lastTimeStep_(0.0)
 {
     if (!isA<mappedPatchBase>(this->patch().patch()))
     {
@@ -165,7 +202,7 @@ rho_(patch().size(), Zero)
     lastTimeStep_ = patch().boundaryMesh().mesh().time().value();
 }
 
-massTransferCoupledFvPatchScalarField
+massTransferCoupledFvPatchScalarField::massTransferCoupledFvPatchScalarField
 (
     const massTransferCoupledFvPatchScalarField& psf,
     const DimensionedField<scalar, volMesh>& iF
@@ -191,7 +228,7 @@ lastTimeStep_(psf.lastTimeStep_)
 // * * * * * * * * * * * * * * * * * * * update * * * * * * * * * * * * * * * * * * * // 
 void massTransferCoupledFvPatchScalarField::updateCoeffs()
 {
-    if(update())
+    if(updated())
     {
         return;
     }
@@ -278,17 +315,17 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         label specieIndex = composition.species()[specieName_];
         ----------------------------------------------------------------------------------*/
         //固体侧的定义上搜寻网格
-        const solidThermo& solidT = mesh.lookupObject<solidThermo>(basicThermo::dictName);
+        const solidThermo& solidT = mesh.lookupPatchField<solidThermo>(basicThermo::dictName);
         //固体侧的密度
         const volScalarField solidRho = solidT.rho();
         //固体侧边界的物料
-        fvPatchScalarField& YpatchS = nbrPatch.lookupObject<volScalarField,scalar>(specieName_);
+        fvPatchScalarField& YpatchS = nbrPatch.lookupPatchField<volScalarField,scalar>(specieName_);
         //固体侧边界的密度
-        const fvPatchScalarField& rhoPatchS = nbrPatch.lookupObject<volScalarField,scalar>("rho");
+        const fvPatchScalarField& rhoPatchS = nbrPatch.lookupPatchField<volScalarField,scalar>("rho");
         //固体侧边界的温度
-        const fvPatchScalarField& TPatchS = nbrPatch.lookupObject<volScalarField,scalar>("T");
+        const fvPatchScalarField& TPatchS = nbrPatch.lookupPatchField<volScalarField,scalar>("T");
         //固体的扩散系数
-        const fvPatchScalarField& DPatchS = nbrPatch.lookupObject<volScalarField,scalar>(SolidDivCoe_);
+        const fvPatchScalarField& DPatchS = nbrPatch.lookupPatchField<volScalarField,scalar>(SolidDivCoe_);
         //固体的边界旁的网格上的物料
         scalarField YinternalS(YpatchS.patchInternalField());
         //固体侧的边界旁的网格上的密度
@@ -329,7 +366,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         //密度数据
         const scalarField rhoInternal(rhoPatch.patchInternalField());
         //网格的体积
-        const scalarField volumeInternel(patch().cellVolumes());
+        const scalarField volumeInternel(mesh.boundaryMesh().cellVolumes());
         //获取单元的标签list
         const labelList& faceCells = patch().faceCells();
 
@@ -379,12 +416,12 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
             //汽化热
             hPhaseChange[faceI] = liquid_->hl(pFace,Tface);
             //内能
-            hRemovedMass[faceI] = liquid_->Hs(specieName_,pFace,Tface);
+            hRemovedMass[faceI] = liquid_->Hs(pFace,Tface);
 
             //能量传递的内能增加量 Q = cp*V*rho*Y*ΔT 
             scalar Q = cp[faceI]*volInternalS[faceI]*rhoPatchS[faceI]*YinternalS[faceI]*(TPatchS[faceI] - Tpatch.oldTime()[faceI]);
             //蒸发速率引起的内能变化 Q = k*m*H
-            scalar Q_dot = EvaporationRate(Tcell) * volInternalS[faceI]*rhoPatchS[faceI]*YinternalS[faceI] * hPhaseChange[cellI];
+            scalar Q_dot = EvaporationRate(Tcell) * volInternalS[faceI]*rhoPatchS[faceI]*YinternalS[faceI] * hPhaseChange[faceI];
 
             if (Q < Q_dot)
             {
@@ -395,8 +432,8 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
                 dm[faceI] = volInternalS[faceI]*rhoPatchS[faceI]*YinternalS[faceI]*EvaporationRate(Tcell);
             }
 
-            YpatchS[faceI] = YinternalS[faceI]/(1 - EvaporationRate(Tcell)*deltaCoeffs[faceI]/DPatchS[faceI]);
-            Yinternal[faceI] = dm[faceI]/2.2e-3/rhoPatch[faceI]/volumeInternel[faceI]*deltaFace[faceI] - Ypatch[faceI];
+            YpatchS[faceI] = YinternalS[faceI]/(1 - EvaporationRate(Tcell)*deltaFace/DPatchS[faceI]);
+            Yinternal[faceI] = dm[faceI]/2.2e-3/rhoPatch[faceI]/volumeInternel[faceI]*deltaFace - Ypatch[faceI];
         }
         //计算质量传输量
         mass_ = massOld_ + dm * dt ;
@@ -420,12 +457,12 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         {
             const label cellI = faceCells[faceI];
 
-            Ypatch[cellI] += dm[faceI] * ;
+            //Ypatch[cellI] += dm[faceI] * ;
 
 
         }
     }
-
+    scalarField  mpCpTpNbr(patch().size(),Zero);
     scalarField  dmHfgNbr(patch().size(),Zero);
     //固体侧的处理
     if(!fluid_)
@@ -510,3 +547,5 @@ void massTransferCoupledFvPatchScalarField::write(Ostream& os) const
 
     temperatureCoupledBase::write(os);
 }
+}//end namespace compressible
+}//end namespace foam

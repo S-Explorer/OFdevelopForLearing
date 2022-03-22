@@ -35,6 +35,7 @@ License
 
 namespace Foam
 {
+namespace compressible{
 /*---------------------------------------------------------------------------*\
            Class massTransferCoupledFvPatchScalarField Declaration
 \*---------------------------------------------------------------------------*/
@@ -43,7 +44,7 @@ class massTransferCoupledFvPatchScalarField:public mixedFvPatchScalarField,publi
 {
 private:
     //蒸发速率计算
-    scalar EvaporationRate(scalar);
+    scalar EvaporationRate(scalar) const;
     //导出物理场
     volScalarField& outputScalarField
     (
@@ -118,14 +119,22 @@ public:
     massTransferCoupledFvPatchScalarField
     (
         const fvPatch&,
-        const DimensionedField<scalar, volMesh>&
+        const DimensionedField<scalar, volMesh>& 
     );
 
     massTransferCoupledFvPatchScalarField
     (
-        const fvPatch&,
-        const DimensionedField<scalar, volMesh>&,
+        const fvPatch& ,
+        const DimensionedField<scalar, volMesh>& ,
         const dictionary&
+    );
+    
+    massTransferCoupledFvPatchScalarField
+    (
+        const massTransferCoupledFvPatchScalarField&,
+        const fvPatch& ,
+        const DimensionedField<scalar, volMesh>&,
+        const fvPatchFieldMapper&
     );
 
     massTransferCoupledFvPatchScalarField
@@ -143,7 +152,5 @@ public:
 
 
 }
-
-
-
+}
 #endif
