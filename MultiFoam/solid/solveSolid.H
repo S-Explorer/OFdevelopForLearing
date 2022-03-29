@@ -16,6 +16,7 @@ if (finalIter)
             )
           ==
             fvOptions(rho, h)
+						+ fvm::Su(HSource,h)
         );
 
         hEqn.relax();

@@ -316,8 +316,13 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         //const solidThermo& solidT = mesh.lookupObject<solidThermo>(basicThermo::dictName);
         //固体侧的密度
         //const volScalarField solidRho = solidT.rho();
+        scalarField Yvp(patch().size(),Zero);
+        scalarField YvpS(nbrPatch.size(),Zero);
         //固体侧边界的物料
         const fvPatchScalarField& YpatchS = nbrPatch.lookupPatchField<volScalarField,scalar>(specieName_);
+        //固体边界的梯度
+        fixedGradientFvPatchField<scalar>& YpS = const_cast<fixedGradientFvPatchField<scalar>&>
+        (refCast<const fixedGradientFvPatchField<scalar>>(nbrPatch.lookupPatchField<volScalarField, scalar>(specieName_)));
         //固体侧边界的密度
         const fvPatchScalarField& rhoPatchS = nbrPatch.lookupPatchField<volScalarField,scalar>("rho");
         //固体侧边界的温度
@@ -350,6 +355,9 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
 
         //获取边界上的组分数据
         const fvPatchScalarField& Ypatch = patch().lookupPatchField<volScalarField, scalar>(specieName_);
+        //获取边界的梯度
+        fixedGradientFvPatchField<scalar>& Yp = const_cast<fixedGradientFvPatchField<scalar>&>
+        (refCast<const fixedGradientFvPatchField<scalar>>(patch().lookupPatchField<volScalarField, scalar>(specieName_)));
         //边界的p
         const fvPatchScalarField& pPatch = patch().lookupPatchField<volScalarField, scalar>("p");
         //边界的密度
@@ -431,6 +439,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
                 //能量传递的总值大于蒸发所需要的能量，按照蒸发速率来确定dm
                 dm[faceI] = volInternalS[faceI]*rhoPatchS[faceI]*YinternalS[faceI]*EvaporationRate(Tcell);
             }
+            Yvp[faceI] = dm[faceI];
 
             //YpatchS[faceI] = YinternalS[faceI]/(1 - EvaporationRate(Tcell)*deltaFace/DPatchS[faceI]);
             //Yinternal[faceI] = dm[faceI]/2.2e-3/rhoPatch[faceI]/volumeInternel[faceI]*deltaFace - Ypatch[faceI];
@@ -443,6 +452,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         //质量流出的能量
         dHspec = dm * hRemovedMass;
 
+        Yp.gradient() = Yvp;
 
         //输出质量流量数据
         scalarField &massFluxOut = outputScalarField(
