@@ -34,7 +34,7 @@ forAll(solidRegions, i)
                 "H2O",
                 runTime.timeName(),
                 solidRegions[i],
-                IOobject::MUST_READ,
+                IOobject::READ_IF_PRESENT,
                 IOobject::AUTO_WRITE
             ),
             solidRegions[i],

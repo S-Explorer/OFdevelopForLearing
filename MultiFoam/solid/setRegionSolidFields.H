@@ -43,19 +43,32 @@ IOdictionary solidtransProperties
 
 volScalarField HSource
 (
- 		IOobject
-		(
-				"HSource",
-				runTime.timeName(),
-				mesh,
-				IOobject::NO_READ,
-				IOobject::NO_WRITE
-		),
-		mesh,
-		dimensionedScalar("HSource",dimPower/dimVolume,Zero)
+		IOobject
+	(
+			"HSource",
+			runTime.timeName(),
+			mesh,
+			IOobject::NO_READ,
+			IOobject::NO_WRITE
+	),
+	mesh,
+	dimensionedScalar("HSource",dimPower/dimVolume,Zero)
 );
 
-dimensionedScalar Dsolid("Dsolid",dimLength*dimLength/dimTime,solidtransProperties.lookup("Dsolid"));
+volScalarField Dsolid
+(
+    IOobject
+    (
+            "Dsolid",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+    ),
+    mesh,
+    dimensionedScalar("Dsolid",dimLength*dimLength/dimTime,solidtransProperties.lookup("Dsolid"))
+);
+
 
 volScalarField& h = thermo.he();
 //add

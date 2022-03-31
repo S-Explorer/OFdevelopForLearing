@@ -73,6 +73,12 @@ private:
     //能量方程中的源项
     const word sourceTerm_;
 
+    //特征长度
+    scalar L_;
+
+    //舍伍德数
+    scalar Sh_;
+
     //获取固体侧的扩散系数
     const word SolidDivCoe_;
 
