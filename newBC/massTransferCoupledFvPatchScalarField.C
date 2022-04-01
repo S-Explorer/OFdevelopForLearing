@@ -83,6 +83,8 @@ volScalarField& massTransferCoupledFvPatchScalarField::outputScalarField
     return const_cast<volScalarField &>(mesh.lookupObject<volScalarField>(fieldName));
 }
 
+/* * * * * * * * * * * * 构造函数 * * * * * * * * * * * */
+
 massTransferCoupledFvPatchScalarField::massTransferCoupledFvPatchScalarField
 (
     const fvPatch& p,
@@ -93,6 +95,9 @@ temperatureCoupledBase(patch(),"undefined","undefined","undefined-K","undefined-
 pName_("p"),
 UName_("U"),
 rhoName_("rho"),
+thicknessLayers_(0),
+kappaLayers_(0),
+contactRes_(0),
 muName_("thermo:mu"),
 TnbrName_("T"),
 specieName_("none"),
@@ -112,6 +117,7 @@ Mcomp_(0.0),
 fluid_(false),
 cp_(patch().size(), Zero),
 rho_(patch().size(), Zero),
+thickness_(patch().size(), Zero),
 lastTimeStep_(0.0)
 {
     this->refValue() = 0.0 ;
@@ -131,6 +137,9 @@ temperatureCoupledBase(patch(),psf),
 pName_(psf.pName_),
 UName_(psf.UName_),
 rhoName_(psf.rhoName_),
+thicknessLayers_(psf.thicknessLayers_),
+kappaLayers_(psf.kappaLayers_),
+contactRes_(psf.contactRes_),
 muName_(psf.muName_),
 TnbrName_(psf.TnbrName_),
 specieName_(psf.specieName_),
@@ -150,6 +159,7 @@ Mcomp_(psf.Mcomp_),
 fluid_(psf.fluid_),
 cp_(psf.cp_,mapper),
 rho_(psf.rho_,mapper),
+thickness_(psf.thickness_, mapper),
 lastTimeStep_(psf.lastTimeStep_)
 {}
 
@@ -164,6 +174,9 @@ temperatureCoupledBase(patch(), dict),
 pName_(dict.lookupOrDefault<word>("p", "p")),
 UName_(dict.lookupOrDefault<word>("U", "U")),
 rhoName_(dict.lookupOrDefault<word>("rho", "rho")),
+thicknessLayers_(0),
+kappaLayers_(0),
+contactRes_(0.0),
 muName_(dict.lookupOrDefault<word>("mu", "thermo:mu")),
 TnbrName_(dict.lookupOrDefault<word>("Tnbr", "T")),
 specieName_(dict.lookupOrDefault<word>("specie", "none")),
@@ -183,6 +196,7 @@ Mcomp_(0.0),
 fluid_(false),
 cp_(patch().size(), Zero),
 rho_(patch().size(), Zero),
+thickness_(patch().size(), Zero),
 lastTimeStep_(0.0)
 {
     if (!isA<mappedPatchBase>(this->patch().patch()))
@@ -195,19 +209,71 @@ lastTimeStep_(0.0)
             << " in file " << internalField().objectPath()
             << exit(FatalIOError);
     }
+    if (dict.found("thicknessLayers"))
+    {
+        dict.lookup("thicknessLayers") >> thicknessLayers_;
+        dict.lookup("kappaLayers") >> kappaLayers_;
+
+        if (thicknessLayers_.size() > 0)
+        {
+            // Calculate effective thermal resistance by harmonic averaging
+            forAll(thicknessLayers_, iLayer)
+            {
+                contactRes_ += thicknessLayers_[iLayer]/kappaLayers_[iLayer];
+            }
+            contactRes_ = 1.0/contactRes_;
+        }
+    }   
     fvPatchScalarField::operator=(scalarField("value", dict, p.size()));
+
+    if (dict.found("refValue"))
+    {
+        // Full restart
+        refValue() = scalarField("refValue", dict, p.size());
+        refGrad() = scalarField("refGradient", dict, p.size());
+        valueFraction() = scalarField("valueFraction", dict, p.size());
+    }
+    else
+    {
+        // Start from user entered data. Assume fixedValue.
+        refValue() = *this;
+        refGrad() = 0.0;
+        valueFraction() = 1.0;
+    }
+
+    if (dict.found("specie"))
+    {
+        fluid_ = true;
+        Info << "************************ found fluid side" << endl;
+    }
+
     if(fluid_)
     {
         dict.readEntry("carrierMolWeight",Mcomp_);
         dict.readEntry("Tvap",Tvap_);
         dict.readEntry("Length",L_);
         dict.readEntry("Sherwood",Sh_);
-        dict.readEntry("sourceTerm",sourceTerm_);
-        dict.readEntry("solidCoeff",SolidDivCoe_);
         liquidDict_ = dict.subDict("liquid");
         liquid_ = liquidProperties::New(liquidDict_.subDict(specieName_));
+
+        if (dict.found("thickness"))
+        {
+            scalarField& Tp = *this;
+            const scalarField& magSf = patch().magSf();
+
+            // Assume initially standard pressure for rho calculation
+            scalar pf = 1e5;
+            thickness_ = scalarField("thickness", dict, p.size());
+            forAll(thickness_, i)
+            {
+                mass_[i] =
+                    thickness_[i]*liquid_->rho(pf, Tp[i])*magSf[i];
+                massOld_[i] = mass_[i];
+            }
+        }
+
+        lastTimeStep_ = patch().boundaryMesh().mesh().time().value();
     }
-    lastTimeStep_ = patch().boundaryMesh().mesh().time().value();
 }
 
 massTransferCoupledFvPatchScalarField::massTransferCoupledFvPatchScalarField
@@ -216,6 +282,9 @@ massTransferCoupledFvPatchScalarField::massTransferCoupledFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 ):
 mixedFvPatchScalarField(psf, iF),
+thicknessLayers_(psf.thicknessLayers_),
+kappaLayers_(psf.kappaLayers_),
+contactRes_(psf.contactRes_),
 temperatureCoupledBase(patch(), psf),
 TnbrName_(psf.TnbrName_),
 specieName_(psf.specieName_),
@@ -232,6 +301,7 @@ dmHfg_(psf.dmHfg_),
 mpCpTp_(psf.mpCpTp_),
 Mcomp_(psf.Mcomp_),
 fluid_(psf.fluid_),
+thickness_(psf.thickness_),
 lastTimeStep_(psf.lastTimeStep_)
 {}
 
@@ -514,10 +584,10 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         dmHfgNbr = nbrField.dmHfg_;
         mpp.distribute(dmHfgNbr);        
     } 
-
+    
     scalarField KDeltaNbr_;
     //计算温度变化引起的热量传递值
-    KDeltaNbr_ = nbrField.kappa(nbrField) * nbrPatch.deltaCoeffs();
+    KDeltaNbr_.setSize(nbrField.size(),Zero);
     mpp.distribute(KDeltaNbr_);
 
     const scalarField dmHfg(dmHfgNbr + dmHfg_);
@@ -533,7 +603,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         scalar Qdm = gSum(dm);
         scalar QMass = gSum(mass_);
         scalar Qt = gSum(myKDelta_ * (Tpatch - Tinternal) * magSf);
-        scalar QtSolid = gSum(KDeltaNbr_*(Tpatch - nbrInternalField)*magSf);
+        scalar QtSolid = gSum((Tpatch - nbrInternalField)*magSf);
 
         scalar Q = gSum(kappa(Tpatch)*patch().magSf()*snGrad());
         scalar Qhgf = gSum(dmHfg_*magSf);

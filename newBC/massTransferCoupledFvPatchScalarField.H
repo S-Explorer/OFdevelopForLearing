@@ -61,6 +61,16 @@ private:
     //密度场
     const word rhoName_;
 
+    //- Thickness of layers
+    scalarList thicknessLayers_;
+
+    //- Conductivity of layers
+    scalarList kappaLayers_;
+
+    //- Total contact resistance
+    scalar contactRes_;
+
+
     //动力粘度
     const word muName_;
 
@@ -113,6 +123,9 @@ private:
 
     //密度
     scalarField rho_;
+
+    //- Thickness field for inert mode
+    scalarField thickness_;
 
     //- Last time step for which mass of fluid film was calculated
     scalar lastTimeStep_;

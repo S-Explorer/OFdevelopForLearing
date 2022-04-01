@@ -29,18 +29,6 @@ if (!thermo.isotropic())
     );
 }
 
-IOdictionary solidtransProperties
-(
-    IOobject
-    (
-        "SolidProperties",
-        runTime.constant(),
-        mesh,
-        IOobject::MUST_READ_IF_MODIFIED,
-        IOobject::NO_WRITE
-    )
-);
-
 volScalarField HSource
 (
 		IOobject
@@ -66,9 +54,24 @@ volScalarField Dsolid
             IOobject::NO_WRITE
     ),
     mesh,
-    dimensionedScalar("Dsolid",dimLength*dimLength/dimTime,solidtransProperties.lookup("Dsolid"))
+    dimensionedScalar(dimViscosity,Zero)
 );
 
+if (!Dsolid.headerOk())
+{    
+    IOdictionary solidtransProperties
+    (
+        IOobject
+        (
+            "SolidProperties",
+            runTime.constant(),
+            mesh,
+            IOobject::MUST_READ_IF_MODIFIED,
+            IOobject::NO_WRITE
+        )
+    );
+    Dsolid = dimensionedScalar("Dsolid",dimViscosity,solidtransProperties);
+}
 
 volScalarField& h = thermo.he();
 //add
