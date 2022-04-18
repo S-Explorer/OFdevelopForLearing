@@ -10,7 +10,6 @@ FoamFile
     version     2.0;
     format      ascii;
     class       volScalarField;
-    location    "0/fluid";
     object      T;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -36,9 +35,17 @@ boundaryField
 
     fixedWalls
     {
-        type            empty;
+        type            zeroGradient;
     }
-
+/*
+    fluid_to_kernel
+    {
+        type            compressible::turbulentTemperatureCoupledBaffleMixed;
+        value           $internalField;
+        Tnbr            T;
+        kappaMethod     fluidThermo;
+    }
+*/
     fluid_to_kernel
     {
         type            massTransferCoupled;
@@ -47,7 +54,7 @@ boundaryField
         Tvap            371;
         sourceTerm      HSource;
         Tnbr            T;
-        solidCoeff      Ds;
+        solidCoeff      Dsolid;
         thickness       uniform 0;
         carrierMolWeight 29.8;
         Length          0.001;
@@ -61,6 +68,7 @@ boundaryField
         }
         value           $internalField;
     }
+
 }
 
 

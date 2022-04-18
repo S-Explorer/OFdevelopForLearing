@@ -109,20 +109,24 @@ int main(int argc, char *argv[])
 
             forAll(fluidRegions, i)
             {
-                Info<< "\nSolving for fluid region "
-                    << fluidRegions[i].name() << endl;
+                    Info << "\nSolving for fluid region "<< fluidRegions[i].name() << endl;
                 #include "setRegionFluidFields.H"
+                    Info << " \n seted Regions fileds !" << endl;
                 #include "readFluidMultiRegionPIMPLEControls.H"
+                    Info << " \n read fluid Regions PIMPLE !" << endl;
                 #include "solveFluid.H"
+                    Info << " \n solved fluid Regions equation !" << endl;
             }
 
             forAll(solidRegions, i)
             {
-                Info<< "\nSolving for solid region "
-                    << solidRegions[i].name() << endl;
+                    Info << "\nSolving for solid region "<< solidRegions[i].name() << endl;
                 #include "setRegionSolidFields.H"
+                    Info << " \n seted Regions solid !" << endl;
                 #include "readSolidMultiRegionPIMPLEControls.H"
+                    Info << " \n read solid Regions PIMPLE !" << endl;
                 #include "solveSolid.H"
+                    Info << " \n solved solid Regions equation !" << endl;
             }
 
             // Additional loops for energy solution only
@@ -136,8 +140,7 @@ int main(int argc, char *argv[])
 
                     forAll(fluidRegions, i)
                     {
-                        Info<< "\nSolving for fluid region "
-                            << fluidRegions[i].name() << endl;
+                        Info << "\noCorr for fluid region " << fluidRegions[i].name() << endl;
                        #include "setRegionFluidFields.H"
                        #include "readFluidMultiRegionPIMPLEControls.H"
                        frozenFlow = true;
@@ -146,8 +149,7 @@ int main(int argc, char *argv[])
 
                     forAll(solidRegions, i)
                     {
-                        Info<< "\nSolving for solid region "
-                            << solidRegions[i].name() << endl;
+                        Info << "\noCorr for solid region " << solidRegions[i].name() << endl;
                         #include "setRegionSolidFields.H"
                         #include "readSolidMultiRegionPIMPLEControls.H"
                         #include "solveSolid.H"

@@ -95743,7 +95743,7 @@ boundaryField
     }
     fixedWalls
     {
-        type            empty;
+        type            zeroGradient;
     }
 }
 

@@ -19,17 +19,17 @@ libs            (MassTransferCoupled);
 
 application     kernelPhaseTransition4FOAM;
 
-startFrom       latestTime;
+startFrom       startTime;
 
-startTime       0.001;
+startTime       0;
 
 stopAt          endTime;
 
-endTime         10;
+endTime         20;
 
-deltaT          0.001;
+deltaT          1e-2;
 
-writeControl    adjustableRunTime;
+writeControl    adjustable;
 
 writeInterval   1;
 
@@ -45,7 +45,7 @@ timeFormat      general;
 
 timePrecision   6;
 
-runTimeModifiable true;
+runTimeModifiable yes;
 
 maxCo           0.8;
 

@@ -16,10 +16,7 @@ FoamFile
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 PIMPLE
 {
-  momentumPredictor yes;
-  nOuterCorrectors  40;
-  nCorrectors   4;
-  nNonOrthogonalCorrectors  0;
+  nOuterCorrectors  1;
 }
 
 // ************************************************************************* //

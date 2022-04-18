@@ -56423,7 +56423,8 @@ boundaryField
     }
     fixedWalls
     {
-        type            empty;
+        type            fixedValue;
+        value           uniform 0;
     }
     fluid_to_kernel
     {

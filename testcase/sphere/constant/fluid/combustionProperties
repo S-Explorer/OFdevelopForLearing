@@ -10,14 +10,19 @@ FoamFile
     version     2.0;
     format      ascii;
     class       dictionary;
-    location    "constant";
     object      combustionProperties;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 combustionModel  none;
 
-active  false;
+active  no;
+
+/*
+PaSRCoeffs
+{
+    Cmix        1.0;
+}*/
 
 
 // ************************************************************************* //

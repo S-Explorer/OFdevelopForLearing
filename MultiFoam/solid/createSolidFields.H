@@ -9,8 +9,11 @@ PtrList<volSymmTensorField> aniAlphas(solidRegions.size());
 //add to solid section
 PtrList<volScalarField> interSolid(solidRegions.size());
 PtrList<volScalarField> cellVolume(solidRegions.size());
+PtrList<volScalarField> sourceHeat(solidRegions.size());
+PtrList<volScalarField> diffusionSolid(solidRegions.size());
+PtrList<IOdictionary> dictionSolid(solidRegions.size());
 
-// Populate solid field pointer lists
+// Populate solid field pointer list
 forAll(solidRegions, i)
 {
     Info<< "*** Reading solid mesh thermophysical properties for region "
@@ -22,8 +25,15 @@ forAll(solidRegions, i)
     Info<< "    Adding to radiations\n" << endl;
     radiations.set(i, radiation::radiationModel::New(thermos[i].T()));
 
+    Info<< "    Adding to fvOptions\n" <<endl;
+    solidHeatSources.set
+    (
+        i,
+        new fv::options(solidRegions[i])
+    );
+
     //add the internal 
-    Info<< "    Addomg the interface \n"<<endl;
+    Info<< "    Adding the interface \n"<<endl;
     interSolid.set
     (
         i,
@@ -41,6 +51,65 @@ forAll(solidRegions, i)
             dimensionedScalar("H2O",dimless,0)
         )
     );
+
+    //setting for heat source 
+    Info << "   Adding the heat source change tmp\n" << endl;
+    sourceHeat.set
+    (
+        i,
+        new volScalarField
+        (
+            IOobject
+            (
+                "HSource",
+                runTime.timeName(),
+                solidRegions[i],
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            ),
+            solidRegions[i],  
+            dimensionedScalar("HSource",dimPower/dimVolume,Zero)          
+        )
+    );
+
+    //read the specis diffusion number
+    Info << "   Adding the diffusionSolid number \n" << endl;
+    diffusionSolid.set
+    (
+        i,
+        new volScalarField
+        (
+            IOobject
+            (
+                "Dsolid",
+                runTime.timeName(),
+                solidRegions[i],
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            ),
+            solidRegions[i],            
+            dimensionedScalar("Dsolid",dimViscosity,Zero)
+        )
+    );
+    //add the properties file in solid region constant folder!
+    dictionSolid.set
+    (
+        i,
+        new IOdictionary
+        (
+            IOobject
+            (
+                "SolidProperties",
+                runTime.constant(),
+                solidRegions[i],
+                IOobject::MUST_READ_IF_MODIFIED,
+                IOobject::NO_WRITE
+            )
+        )
+    );
+
+    diffusionSolid[i] = dimensionedScalar("Dsolid",dimViscosity,dictionSolid[i]);
+
     //add the cell volume to the file
     Info<<"     Adding the cell volume \n"<<endl;
     cellVolume.set
@@ -57,7 +126,7 @@ forAll(solidRegions, i)
                 IOobject::AUTO_WRITE
             ),
             solidRegions[i],
-            dimensionedScalar("temp",dimless,0)
+            dimensionedScalar("cellVolume",dimVolume,0)
         )
     );
 

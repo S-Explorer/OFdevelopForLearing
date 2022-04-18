@@ -21,16 +21,9 @@ solvers
     p_rgh
     {
         solver          GAMG;
-        tolerance       1e-06;
-        relTol          0.05;
+        tolerance       1e-07;
+        relTol          0.01;
         smoother        GaussSeidel;
-        nPreSweeps      0;
-        nPostSweeps     2;
-        nFinestSweeps   2;
-        cacheAgglomeration true;
-        nCellsInCoarsestLevel 10;
-        agglomerator    faceAreaPair;
-        mergeLevels     1;
     }
     p_rghFinal
     {
@@ -39,14 +32,19 @@ solvers
         relTol          0;
     }
 
-    "rho.*"
+    rho
     {
-        $p_rgh;
+        solver          PCG;
+	preconsitioner  DIC;
+	tolerance	1e-7;
+	relTol		0.1;
+    }
+    rhoFinal
+    {
+        $rho;
         tolerance       1e-05;
         relTol          0;
-    }
-    
-    
+    }   
 
     "(U|h|k|epsilon|R)"
     {
@@ -54,10 +52,9 @@ solvers
         preconditioner DILU;
         tolerance   1e-7;
         relTol      0.1;
-        minIter     3;
     }
-	
-	"(U|h|k|epsilon|R)Final"
+    
+    "(U|h|k|epsilon|R)Final"
     {
         $U
         tolerance   1e-7;
@@ -65,13 +62,16 @@ solvers
     }
     Yi
     {
-        $hFinal;
+        $U;
+    }
+    YiFinal
+    {
+        $UFinal;
     }
     H2O
     {
         $U;
     }
-
     H2OFinal
     {
         $U;
@@ -82,60 +82,12 @@ solvers
 
 PIMPLE
 {
-    momentumPredictor   no;
-    nOuterCorrectors    20;
+    momentumPredictor   yes;
     nCorrectors     2;
     nNonOrthogonalCorrectors    0;
-    turbOnFinalIterOnly     false;
-    outerCorrectorResidualControl
-    {
-      //H2O 
-      //{
-    //    tolerance 1e-2;
-    //    relTol    0.0;
-      //}
-      h
-      {
-          tolerance 1e-5;
-          relTol    0.0;
-      }
-      Ux
-      {
-          tolerance 1e-5;
-          relTol    0.0;
-      }
-          Uy
-          {
-                  tolerance     1e-5;
-                  relTol        0.0;
-          }
-      k
-      {
-          tolerance 1e-4;
-          relTol    0.0;
-      }
-      omega
-      {
-          tolerance 1e-4;
-          relTol    0.0;
-      }
-      p_rgh
-      {
-          tolerance 5e-5;
-          relTol    0.0;
-      }
-    }
-
-
 }
-
 relaxationFactors
 {
-    files
-    {
-        p_rgh                   0.7;
-        p_rghFinal              1.0;
-    }
     equations
     {
         ".*"                    1.0;

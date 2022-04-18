@@ -9,14 +9,14 @@ FoamFile
 
 dimensions      [0 0 0 0 0 0 0];
 
-internalField   uniform 0.76;
+internalField   uniform 0.7;
 
 boundaryField
 {
     kernel_to_fluid
     {
         type            fixedGradient;
-        value           uniform 0;
+        //value           uniform 0.7;
         gradient        uniform 0;
     }
 

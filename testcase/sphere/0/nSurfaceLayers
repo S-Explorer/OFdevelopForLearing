@@ -95745,7 +95745,8 @@ boundaryField
     }
     fixedWalls
     {
-        type            empty;
+        type            fixedValue;
+        value           uniform 0;
     }
     kernel
     {

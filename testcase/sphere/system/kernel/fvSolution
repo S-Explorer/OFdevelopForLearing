@@ -31,13 +31,23 @@ solvers
         tolerance        1e-7;
         relTol           0;
     }
+    H2O
+    {
+        solver      PCG;
+        preconditioner DIC;
+        tolerance   1e-7;
+        relTol      0.1;
+    }
+    H2OFinal
+    {
+        $H2O
+        tolerance   1e-7;
+        relTol      0;
+    }
 }
 
 PIMPLE
 {
-    momentumPredictor       no;
-    nOuterCorrectors        5;
-    nCorrectors             1;
     nNonOrthogonalCorrectors    0;
     outerCorrectorResidualControl
     {

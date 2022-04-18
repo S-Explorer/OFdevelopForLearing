@@ -29,19 +29,19 @@ mixture
 {
     specie
     {
-        molWeight   12; // [g/mol]
+        molWeight   27; // [g/mol]
     }
 
     transport
     {
-        kappa   0.552;    // [W/m/K]
+        kappa   20;    // [W/m/K]
     }
 
     thermodynamics
     {
         Hf      0;
-        Cv      3987;    // [J/kg/K]
-        Cp      3987;
+        //Cv      800;    // [J/kg/K]
+        Cp      1720;
     }
 
     equationOfState

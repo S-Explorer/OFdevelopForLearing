@@ -70,7 +70,6 @@ private:
     //- Total contact resistance
     scalar contactRes_;
 
-
     //动力粘度
     const word muName_;
 

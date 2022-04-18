@@ -6,6 +6,7 @@ if (finalIter)
 {
     for (int nonOrth=0; nonOrth<=nNonOrthCorr; ++nonOrth)
     {
+        Info << "\n \t solver solid hEqn !"<<endl;
         fvScalarMatrix hEqn
         (
             fvm::ddt(betav*rho, h)
@@ -14,9 +15,9 @@ if (finalIter)
              ? fvm::laplacian(betav*thermo.alpha(), h, "laplacian(alpha,h)")
              : fvm::laplacian(betav*taniAlpha(), h, "laplacian(alpha,h)")
             )
-          ==
-            fvOptions(rho, h)
-						+ fvm::Su(HSource,h)
+          ==            
+            fvm::Su(HSource,h)
+          + fvOptions(rho, h)
         );
 
         hEqn.relax();
@@ -27,6 +28,7 @@ if (finalIter)
 
         fvOptions.correct(h);
 
+        Info << "\n \t solver solid FEqn !"<<endl;
         fvScalarMatrix FEqn
         (
             fvm::ddt(interF)

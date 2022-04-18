@@ -56421,7 +56421,7 @@ boundaryField
     }
     fixedWalls
     {
-        type            empty;
+        type            zeroGradient;
     }
     fluid_to_kernel
     {

@@ -104732,7 +104732,7 @@ boundaryField
     }
     fixedWalls
     {
-        type            empty;
+        type            calculated;
     }
 }
 
