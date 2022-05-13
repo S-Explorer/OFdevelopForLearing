@@ -37,18 +37,25 @@ namespace Foam{
 namespace compressible{
 //计算蒸发率
 scalar massTransferCoupledFvPatchScalarField::EvaporationRate(scalar T) const
-{
+{/*
     if(T < scalar(430))
     {
         scalar A = 5.13e10;//Amoi   /s
-        scalar E = 88000;//Emoi     J/mol
+        scalar E = 27360;//Emoi     J/mol
         scalar R = 8.31446261815;//R     J/kmol
-        scalar k = A * exp(-1 * E / R / T);
+        scalar k = exp(-1 * E / R / T);
         return k; 
     }else{
         return scalar(0.9);
-    }
-    return scalar(0);    
+    }*/
+    scalar k = 0.24261 * exp( -2530.2 / T );
+    return k;
+}
+//计算舍伍德数
+scalar massTransferCoupledFvPatchScalarField::Shnumber(scalar Re,scalar Sc) const
+{
+    scalar shnumber_ = 2.0+0.552*pow(Re,1/2)*pow(Sc,1/3);
+    return shnumber_;
 }
 //导出物理场
 volScalarField& massTransferCoupledFvPatchScalarField::outputScalarField
@@ -103,13 +110,11 @@ TnbrName_("T"),
 specieName_("none"),
 sourceTerm_("HSource"),
 L_(0.001),
-Sh_(0.7),
 SolidDivCoe_("Dsolid"),
 liquid_(nullptr),
 liquidDict_(nullptr),
 mass_(patch().size(), Zero),
 massOld_(patch().size(), Zero),
-Tvap_(0.0),
 myKDelta_(patch().size(), Zero),
 dmHfg_(patch().size(), Zero),
 mpCpTp_(patch().size(), Zero),
@@ -145,13 +150,11 @@ TnbrName_(psf.TnbrName_),
 specieName_(psf.specieName_),
 sourceTerm_(psf.sourceTerm_),
 L_(psf.L_),
-Sh_(psf.Sh_),
 SolidDivCoe_(psf.SolidDivCoe_),
 liquid_(psf.liquid_.clone()),
 liquidDict_(psf.liquidDict_),
 mass_(psf.mass_,mapper),
 massOld_(psf.massOld_,mapper),
-Tvap_(psf.Tvap_),
 myKDelta_(psf.myKDelta_,mapper),
 dmHfg_(psf.dmHfg_,mapper),
 mpCpTp_(psf.mpCpTp_,mapper),
@@ -182,13 +185,11 @@ TnbrName_(dict.lookupOrDefault<word>("Tnbr", "T")),
 specieName_(dict.lookupOrDefault<word>("specie", "H2O")),
 sourceTerm_(dict.lookupOrDefault<word>("sourceTerm","HSource")),
 L_(0.001),
-Sh_(0.7),
 SolidDivCoe_(dict.lookupOrDefault<word>("solidCoeff","Dsolid")),
 liquid_(nullptr),
 liquidDict_(),
 mass_(patch().size(), Zero),
 massOld_(patch().size(), Zero),
-Tvap_(0.0),
 myKDelta_(patch().size(), Zero),
 dmHfg_(patch().size(), Zero),
 mpCpTp_(patch().size(), Zero),
@@ -246,12 +247,12 @@ lastTimeStep_(0.0)
         fluid_ = true;
         Info << "************************ found fluid side ************************" << endl;
         //获取边界的网格信息
-        const polyMesh& mesh = patch().boundaryMesh().mesh();
-        //查找当前网格的网格名；
-        const fvPatch& yp = refCast<const fvMesh>(mesh).boundary()[patch().index()];
-        const mappedPatchBase& mpp = refCast<const mappedPatchBase>(patch().patch());
-        const fvPatch& sp = refCast<const fvMesh>(mpp.sampleMesh()).boundary()[mpp.samplePolyPatch().index()];
-        Info <<"\tmapped patch name is : " << yp.name() << "\n  and it's nbr patch name is : "<<sp.name()<< endl;
+        // const polyMesh& mesh = patch().boundaryMesh().mesh();
+        // //查找当前网格的网格名；
+        // const fvPatch& yp = refCast<const fvMesh>(mesh).boundary()[patch().index()];
+        // const mappedPatchBase& mpp = refCast<const mappedPatchBase>(patch().patch());
+        // const fvPatch& sp = refCast<const fvMesh>(mpp.sampleMesh()).boundary()[mpp.samplePolyPatch().index()];
+        // Info <<"\tmapped patch name is : " << yp.name() << "\n  and it's nbr patch name is : "<<sp.name()<< endl;
 
         /*forAll(yp,faceI){
             Info << faceI << "\t" ;
@@ -264,18 +265,18 @@ lastTimeStep_(0.0)
         fluid_ = false;
         Info << "************************ found solid side ************************" << endl;
         //获取边界的网格信息
-        const polyMesh& mesh = patch().boundaryMesh().mesh();
-        //查找当前网格的网格名；
-        const fvPatch& yp = refCast<const fvMesh>(mesh).boundary()[patch().index()];
-        const mappedPatchBase& mpp = refCast<const mappedPatchBase>(patch().patch());
-        const fvPatch& sp = refCast<const fvMesh>(mpp.sampleMesh()).boundary()[mpp.samplePolyPatch().index()];
-        Info <<"\tmapped patch name is : " << yp.name() << "\n  and it's nbr patch name is : "<<sp.name()<< endl;
+        // const polyMesh& mesh = patch().boundaryMesh().mesh();
+        // //查找当前网格的网格名；
+        // const fvPatch& yp = refCast<const fvMesh>(mesh).boundary()[patch().index()];
+        // const mappedPatchBase& mpp = refCast<const mappedPatchBase>(patch().patch());
+        // const fvPatch& sp = refCast<const fvMesh>(mpp.sampleMesh()).boundary()[mpp.samplePolyPatch().index()];
+        // Info <<"\tmapped patch name is : " << yp.name() << "\n  and it's nbr patch name is : "<<sp.name()<< endl;
     }
 
     if(fluid_)
     {
         dict.readEntry("carrierMolWeight",Mcomp_);
-        dict.readEntry("Tvap",Tvap_);
+        dict.readEntry("CharaLength",L_);
         liquidDict_ = dict.subDict("liquid");
         liquid_ = liquidProperties::New(liquidDict_.subDict(specieName_));
 
@@ -283,7 +284,6 @@ lastTimeStep_(0.0)
         {
             scalarField& Tp = *this;
             const scalarField& magSf = patch().magSf();
-
             // Assume initially standard pressure for rho calculation
             scalar pf = 1e5;
             thickness_ = scalarField("thickness", dict, p.size());
@@ -294,7 +294,6 @@ lastTimeStep_(0.0)
                 massOld_[i] = mass_[i];
             }
         }
-
         lastTimeStep_ = patch().boundaryMesh().mesh().time().value();
     }
 }
@@ -313,7 +312,6 @@ TnbrName_(psf.TnbrName_),
 specieName_(psf.specieName_),
 sourceTerm_(psf.sourceTerm_),
 L_(psf.L_),
-Sh_(psf.Sh_),
 SolidDivCoe_(psf.SolidDivCoe_),
 liquid_(psf.liquid_.clone()),
 liquidDict_(psf.liquidDict_),
@@ -457,13 +455,19 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         //获取物料的体心数据
         const scalarField Yifluid(YpatchFluid.patchInternalField());
         //获得流体域的压力场
-        const fvPatchScalarField& ppatchFluid = yp.lookupPatchField<volScalarField,scalar>("p");
+        const fvPatchScalarField& ppatchFluid = yp.lookupPatchField<volScalarField,scalar>(pName_);
         //获得流体域的边界温度
         const fvPatchScalarField& TpatchFluid = yp.lookupPatchField<volScalarField,scalar>(TnbrName_);
+        //获得流体的流速
+        const fvPatchVectorField& UpatchFluid = yp.lookupPatchField<volVectorField,vector>(UName_);
+        const vectorField UFluid(UpatchFluid.patchInternalField()); 
         //获得边界体心的温度
         scalarField TinPatchFluid(TpatchFluid.patchInternalField());
         //获得边界的密度
-        const fvPatchScalarField& rhoPatchfluid = yp.lookupPatchField<volScalarField,scalar>("rho");
+        const fvPatchScalarField& rhoPatchfluid = yp.lookupPatchField<volScalarField,scalar>(rhoName_);
+        //获取边界的运动粘度
+        const fvPatchScalarField& muPatchfluid = yp.lookupPatchField<volScalarField,scalar>(muName_);
+
         //存储比热
         scalarField cp(yp.size(),Zero);
         //存储潜热
@@ -477,7 +481,8 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         /*-----------------------------------------------------------------*\
                                 计算 calculate
         \*-----------------------------------------------------------------*/
-        scalarField yvp(yp.size(),Zero);       
+        scalarField yvp(yp.size(),Zero);
+        scalarField yvp_s(yp.size(),Zero);   
         forAll(yp,faceI)
         {
             scalar TFfluid = TpatchFluid[faceI];
@@ -487,59 +492,114 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
             scalar rhofluid = rhoPatchfluid[faceI];
             scalar rhosolid = rhoSolidpatch[faceI];
             scalar Yi = Yifluid[faceI];
+            scalar Dsolidtmp = Dsolid[faceI];
             scalar Yisolidtmp = Yisolid[faceI];
             liquidRho[faceI] = rhofluid;
             cp[faceI] = liquid_->Cp(pFfluid,TFfluid);
             hfg[faceI] = liquid_->hl(pFfluid,TFfluid);
+
+            //动力粘度计算
+            scalar nuf = muPatchfluid[faceI]/rhofluid;
+            //蒸汽扩散系数计算
+            const scalar Dpatch = liquid_->D(pFfluid,TFfluid);
+            //获得蒸汽的分子质量
+            const scalar Mv = liquid_->W();
+            //施密特数
+            scalar Sc = nuf / Dpatch;
+            const vector Ufluid = UFluid[faceI];
+            //雷诺数计算
+            scalar Re = mag(Ufluid) * L_ / nuf;
+            //蒸汽的当前状态的饱和蒸汽压
+            const scalar Psat = liquid_->pv(pFfluid,Tinfluid);
+            //当前状态下的含量为
+            //scalar Ythis = Mv * Psat / (Mv * Psat + Mcomp_ * (pFfluid - Psat));
+            //scalar Yinf = max(Yi,scalar(0));
+            //Ythis = max(Ythis , scalar(0));
+            //计算出当前条件下的浓度
+            //const scalar Ytmp = Ythis * Mv / (Mv * Ythis + Mcomp_ * (1 - Ythis));
+            //scalar Ytmp = max((Ythis - Yinf),scalar(0));
+
+            //RH计算
+            scalar Xv = Yi/Mv / (Yi/Mv + ((1 - Yi) / Mcomp_));
+            scalar RH = min( Xv * pFfluid / Psat, 1.0);
+            scalar Weq = 1 / 14.93306 * ( log(4315.76/(8.32*(Tinfluid - 81.7849))) - log(-log(RH)));
+            //传质速率
+            scalar Rw = EvaporationRate(Tinfluid) * (Yisolidtmp - Weq);
+
+            //计算当前的传质系数 m/s
+            const scalar Hm = Dsolidtmp * Shnumber(Re,Sc) / L_;
+            //单位面积的质量流量 kg/m^2/s
+            dm[faceI] = rhosolid * Hm * (Yisolidtmp - Weq);//Rw * rhosolid /soliddelta[faceI] * 2.0;
+            //传质量           kg
+            mass_[faceI] += dm[faceI] * magSf[faceI] * dt;
+            //蒸发量的能量      J
+            const scalar q = dm[faceI] * dt * magSf[faceI] * hfg[faceI];
+            //固体侧的结合水质量
+            //scalar m_solid = rhosolid * magSf[faceI]/soliddelta[faceI] * 2 * Yisolidtmp * 0.1;
+
+            //dm[faceI] = max(m_fluid - m_solid,0.0);
+            //能量方程源项
+            //HsourceSolidpatch[faceI] = q / dt / magSf[faceI] / soliddelta[faceI] ;
+            //梯度计算
+            yvp[faceI] = dm[faceI]/ Dpatch/ rhofluid;
+            yvp_s[faceI] = scalar(-1.0) * dm[faceI] / Dsolidtmp /rhosolid ;
             //获取边界的Δ数值
-            scalar Delta = yp.deltaCoeffs()[faceI];
-            //计算固体侧的网格面心到体心温度差，计算heat flux
-            const scalar q_fluid = (Tinfluid - TFfluid) * magSf[faceI] * myKDelta_[faceI];
-            //计算蒸发量
-            scalar k = EvaporationRate(Tinsolid);
-            scalar q_solid = rhosolid * magSf[faceI]/soliddelta[faceI] * Yisolidtmp * k * hfg[faceI] / dt;
-            //决定最终的q
-            scalar q ;
-            /*
-            if (q_fluid > q_solid)
-            {
-                q = q_solid;
-            }else{
-                q = q_fluid;
-            }*/
-            q = max(q_solid,scalar(0));
-            HsourceSolidpatch[faceI] = q;
-            //计算质量通量kg/s/m2
-            dm[faceI] = q/hfg[faceI]/magSfSolid[faceI];
-            //计算质量传递总量kg
-            mass_[faceI] += q/hfg[faceI]*dt;
-            //计算梯度值
-            yvp[faceI] = min(dm[faceI]/liquid_->D(pFfluid,TFfluid)/rhofluid,Yi/Delta);
+            // scalar Delta = yp.deltaCoeffs()[faceI];
+            // //计算固体侧的网格面心到体心温度差，计算heat flux
+            // const scalar q_fluid = (Tinfluid - TFfluid) * magSf[faceI] * myKDelta_[faceI];
+            // //计算蒸发量
+            // scalar k = EvaporationRate(Tinsolid);
+            // scalar q_solid = rhosolid * magSf[faceI]/soliddelta[faceI] * Yisolidtmp * k * hfg[faceI] / dt;
+            // //决定最终的q
+            // scalar q ;
+            
+            // if (q_fluid > q_solid)
+            // {
+            //     q = q_solid;
+            // }else{
+            //     q = q_fluid;
+            // }
+            // q = max(q_solid,scalar(0));
+            // HsourceSolidpatch[faceI] = q;
+            // //计算质量通量kg/s/m2
+            // dm[faceI] = q/hfg[faceI]/magSfSolid[faceI];
+            // //计算质量传递总量kg
+            // mass_[faceI] += q/hfg[faceI]*dt;
+            // //计算梯度值
+            // yvp[faceI] = min(dm[faceI]/liquid_->D(pFfluid,TFfluid)/rhofluid,Yi/Delta);
             if (faceI == 200)
             {
                 Info << "calculate === Tinfluid:" << Tinfluid
                      << ", TFfluid:"<< TFfluid
                      << ", myKDelta:"<< myKDelta_[faceI]
                      << ", Yi:"<< Yi
+                     << ", YiSolidtmp:"<< Yisolidtmp
                      << ", rhofluid:"<< rhofluid
-                     << ", Delta:"<< Delta
+                     << ", rhosolid:"<< rhosolid
+                     << ", Mv:"<< Mv
+                     << ", nuf:"<< nuf
+                     << ", Sc:"<< Sc
+                     << ", Re:"<< Re
+                     << ", Sh:"<< Shnumber(Re,Sc)
+                     << ", RH:"<< RH
+                     << ", Rw:"<< Rw
+                     << ", Xv:"<< Xv
+                     << ", Weq:"<< Weq
+                     << ", Psat:"<< Psat
+                     << ", Hm:"<< Hm
                      << ", q:"<< q
-                     << ", q_solid:"<< q_solid
-                     << ", q_fluid:"<< q_fluid
                      << ", HsourceSolid:"<< HsourceSolidpatch[faceI]
                      << ", dm:"<< dm[faceI]
                      << ", yvp:"<< yvp[faceI]
-                     << " \n" << endl;
+                     << "  \n" << endl;
             }
         }
-        Info << "gradient" << endl;
         //传递梯度值，流体为正，固体为负，产生传递现象
         YpatchFluid.gradient() = yvp;
-        YpatchSolid.gradient() = -dm/rhoSolidpatch/Dsolid;
+        YpatchSolid.gradient() = yvp_s;
         //更正总的传递质量
         mass_ = max(mass_,scalar(0));
         //输出当前累加的传递质量
-        Info << "massTotal" << endl;
         scalarField& massTotadd = outputScalarField(
                 specieName_ + "massTot",
                 dimMass,
@@ -553,7 +613,12 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
                 refCast<const fvMesh>(mesh)
             ).boundaryFieldRef()[patch().index()];
 
-        Info << "mpcptp_" << endl;
+        scalarField& Penergy = outputScalarField(
+                specieName_ + "Energy",
+                dimLength,
+                refCast<const fvMesh>(mesh)
+            ).boundaryFieldRef()[patch().index()];
+        Penergy = dm * hfg ;
         pDelta = dm / liquidRho / magSf ;
         mpCpTp_ = dm * cp / dt /magSf ;
         dmHfg_ = dm * hfg ;
@@ -576,32 +641,34 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
 
     scalarField alpha(KDeltaNbr + mpCpdt);
 
-        Info << "valueFraction" << endl;
     //valueFraction() = alpha/(alpha + myKDelta_);
     valueFraction() = KDeltaNbr/(KDeltaNbr + myKDelta_);
     //refValue() = (KDeltaNbr*nbrIntFld + mpCpdt*TOld + dmHfg) / alpha ;
     refValue() = nbrIntFld;
-            Info << "ending BC update!" << endl;
     
     if (fluid_)
     {
         scalar Qdm = gSum(dm);
         scalar QMass = gSum(mass_);
-        scalar Qt = gSum(myKDelta_ * (Tf - Tin) * magSf);
-        scalar QtSolid = gSum(KDeltaNbr * (Tp - nbrIntFld) * magSf);
+        scalar QtFluid = gSum(myKDelta_ * (Tp - Tin) * magSf);
+        scalar QtSolid = gSum(KDeltaNbr * (nbrField - nbrIntFld) * magSf);
+        scalar Q = gSum(kappa(Tp) * patch().magSf()*snGrad());
+        scalar Qhgf = gSum(dmHfg_*magSf);
         Info << mesh.name() << ":" << patch().name() << ":" 
              << internalField().name() << "->"
              << nbrMesh.name() << ":" << nbrPatch.name() << ":"
              << internalField().name() << ":" << nl
              << " \t Total mass flux [kg/s] :" << Qdm << nl
              << " \t Total mass on the wall [Kg] :" << QMass << nl
-             << " \t Total heat (>0 leaving the wall to the fluid) [W] :" << Qt << nl
+             << " \t Total heat (>0 leaving the wall to the fluid) [W] :" << QtFluid << nl
              << " \t Total heat (>0 leaving the wall to the solid) [W] :" << QtSolid << nl
+             << " \t the heat transfer rate is :" << Q << nl
+             << " \t the hfg energy is :" << Qhgf << nl
              << " \t wall temperature :" 
              << " \t min:" << gMin(*this)
              << " \t max:" << gMax(*this)
              << " \t avg:" << gAverage(*this)
-             << endl;
+             << " \n " << endl;
     }
     UPstream::msgType() = oldTag ;
 }
@@ -622,8 +689,7 @@ void massTransferCoupledFvPatchScalarField::write(Ostream& os) const
 
         os.writeEntry("carrierMolWeight", Mcomp_);
 
-        os.writeEntry("L", L_);
-        os.writeEntry("Tvap", Tvap_);
+        os.writeEntry("CharaLength", L_);
         os.writeEntry("fluid", fluid_);
         mass_.writeEntry("mass", os);
 

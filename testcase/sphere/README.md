@@ -4,4 +4,4 @@
 
 单个颗粒的干燥模拟案例。
 
-![sphere](./mesh_layer.png)
+<img src="./mesh_layer.png" alt="sphere" width="600" />

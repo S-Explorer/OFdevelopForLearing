@@ -45,6 +45,8 @@ class massTransferCoupledFvPatchScalarField:public mixedFvPatchScalarField,publi
 private:
     //蒸发速率计算
     scalar EvaporationRate(scalar) const;
+    //计算舍伍德数
+    scalar Shnumber(scalar,scalar) const;
     //导出物理场
     volScalarField& outputScalarField
     (
@@ -85,9 +87,6 @@ private:
     //特征长度
     scalar L_;
 
-    //舍伍德数
-    scalar Sh_;
-
     //获取固体侧的扩散系数
     const word SolidDivCoe_;
 
@@ -100,7 +99,7 @@ private:
     scalarField massOld_;
 
     //汽化温度
-    scalar Tvap_;
+    // scalar Tvap_;
 
     //kappa * deltacoeffs
     scalarField myKDelta_;
@@ -160,6 +159,26 @@ public:
         const massTransferCoupledFvPatchScalarField&,
         const DimensionedField<scalar, volMesh>&
     );
+
+    virtual tmp<fvPatchScalarField> clone() const
+    {
+        return tmp<fvPatchScalarField>
+        (
+            new massTransferCoupledFvPatchScalarField
+            (*this)
+        );
+    }
+
+    virtual tmp<fvPatchScalarField> clone(
+        const DimensionedField<scalar, volMesh>& iF
+        ) const
+    {
+        return tmp<fvPatchScalarField>
+        (
+            new massTransferCoupledFvPatchScalarField
+            (*this,iF)
+        );
+    }
 
     virtual void updateCoeffs();
 
