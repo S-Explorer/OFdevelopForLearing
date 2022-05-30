@@ -184,9 +184,12 @@ public:
 
     virtual void write(Ostream&) const;
 
+    //Mapper function 
+        // virtual void autoMap(const fvPatchFieldMapper&);
+
+        // virtual void rmap(const fvPatchScalarField&, const labelList&);
+
 };
-
-
 
 }
 }

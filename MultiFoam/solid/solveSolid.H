@@ -6,15 +6,21 @@ if (finalIter)
 {
     for (int nonOrth=0; nonOrth<=nNonOrthCorr; ++nonOrth)
     {
-        Info << "\n \t solver solid hEqn !"<<endl;
+        Info << "\n \t solver solid FEqn !"<<endl;
+        fvScalarMatrix FEqn
+        (
+            fvm::ddt(interF)
+          - fvm::laplacian(Dsolid,interF)
+        );
+        FEqn.relax();
+        fvOptions.constrain(FEqn);
+        FEqn.solve();
+        
+		Info << "\n \t solver solid hEqn !"<<endl;
         fvScalarMatrix hEqn
         (
-            fvm::ddt(betav*rho, h)
-          - (
-               thermo.isotropic()
-             ? fvm::laplacian(betav*thermo.alpha(), h, "laplacian(alpha,h)")
-             : fvm::laplacian(betav*taniAlpha(), h, "laplacian(alpha,h)")
-            )
+            fvm::ddt(rho, h)
+          - fvm::laplacian(kappa/cp, h, "laplacian(alpha,h)")
           ==            
             fvm::Su(HSource,h)
           + fvOptions(rho, h)
@@ -27,16 +33,6 @@ if (finalIter)
         hEqn.solve(mesh.solver(h.select(finalIter)));
 
         fvOptions.correct(h);
-
-        Info << "\n \t solver solid FEqn !"<<endl;
-        fvScalarMatrix FEqn
-        (
-            fvm::ddt(interF)
-          - fvm::laplacian(Dsolid,interF)
-        );
-        FEqn.relax();
-        fvOptions.constrain(FEqn);
-        FEqn.solve();
     }
 
     thermo.correct();
