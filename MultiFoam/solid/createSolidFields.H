@@ -112,10 +112,10 @@ forAll(solidRegions, i)
     diffusionSolid[i] = dimensionedScalar("Dsolid",dimViscosity,dictionSolid[i]);
 
     dimensionedScalar TemOnes("ones",thermos[i].T().dimensions(),1.0);
-    tmp<volScalarField> tmpdiffusion = 3.01e7*Foam::exp(-3510*TemOnes/thermos[i].T());
+    tmp<volScalarField> tmpdiffusion = 3.01e-7*Foam::exp(-3510*TemOnes/thermos[i].T());
 
     diffusionSolid[i].primitiveFieldRef() = tmpdiffusion();
-    diffusionSolid[i].boundaryFieldRef() = 3.01e7*Foam::exp(-3510/thermos[i].T().boundaryFieldRef());
+    diffusionSolid[i].boundaryFieldRef() = 3.01e-7*Foam::exp(-3510/thermos[i].T().boundaryFieldRef());
     diffusionSolid[i].correctBoundaryConditions();
     //add the cell volume to the file
     Info<<"     Adding the cell volume \n"<<endl;

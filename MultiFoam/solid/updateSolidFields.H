@@ -1,34 +1,35 @@
-fvMesh& mesh = solidRegions[i];
-solidThermo& thermo = thermos[i];
+tmpKappa = (0.0637+0.0958*interSolid[i])/(0.656-0.475*interSolid[i]);
+solidKappa[i].primitiveFieldRef() = tmpKappa();
+solidKappa[i].boundaryFieldRef() = (0.0637+0.0958*interSolid[i].boundaryFieldRef())/(0.656-0.475*interSolid[i].boundaryFieldRef());
+solidKappa[i].correctBoundaryConditions();
 
-volScalarField& Tsolidtmp = thermo.T();
-
-volScalarField& interEFF_coe = interEffSolid[i];
-
+forAll(mesh.cellZones(),cellZone)
 {
-    //for loop internal cell value
-    forAll(mesh.cellZones(),cellZone)
+    const labelList& selectedCells(mesh.cellZones()[cellZone]);
+    const word ZoneName(mesh.cellZones()[cellZone].name());
+    if (ZoneName == "hull")
     {
-        const labelList & selectedCells(mesh.cellZones()[cellZone]);
-        forAll(selectedCells,loopindex)
+        forAll(selectedCells, loopIndex)
         {
-            const label& cellIndex = selectedCells[loopindex];
-            diffusionSolid[i][cellIndex] = interEFF_coe[cellIndex] * Foam::exp(-27.36 / (0.008314*Tsolidtmp[cellIndex]));
+            const label& cellIndex = selectedCells[loopIndex];
+            diffusionSolid[i][cellIndex] = 3.07e-7*Foam::exp(-3510/solidTmp[cellIndex]);
         }
-    }
-    
-    //for loop boundary cell value
-    volScalarField::Boundary& Tbf = Tsolidtmp.boundaryFieldRef();
-    volScalarField::Boundary& dbf = diffusionSolid[i].boundaryFieldRef();
-    volScalarField::Boundary& ibf = interEFF_coe.boundaryFieldRef();
-
-    forAll(mesh.boundary(),patch)
+    }else if (ZoneName == "bran")
     {
-        const word& patchName = mesh.boundary()[patch].name();
-        Info << " patch's name:"<<patchName << endl;
-        forAll(mesh.boundary()[patch],faceI)
+        forAll(selectedCells, loopIndex)
         {
-            dbf[patch][faceI] = ibf[patch][faceI] * Foam::exp(-27.36 / (0.008314*Tbf[patch][faceI]));
+            const label& cellIndex = selectedCells[loopIndex];
+            diffusionSolid[i][cellIndex] = 1.77e-4*Foam::exp(-5390/solidTmp[cellIndex]);            
+        }
+    }else if (ZoneName == "endosperm")
+    {
+        forAll(selectedCells, loopIndex)
+        {
+            const label& cellIndex = selectedCells[loopIndex];
+            diffusionSolid[i][cellIndex] = 2.58e-3*Foam::exp(-5680/solidTmp[cellIndex]);            
         }
     }
 }
+
+diffusionSolid[i].boundaryFieldRef() = 3.07e-7*Foam::exp(-3510/thermos[i].T().boundaryFieldRef());
+diffusionSolid[i].correctBoundaryConditions();

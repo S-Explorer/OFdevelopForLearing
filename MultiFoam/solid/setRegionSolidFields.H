@@ -26,21 +26,21 @@ forAll(mesh.cellZones(),cellZone)
         forAll(selectedCells, loopIndex)
         {
             const label& cellIndex = selectedCells[loopIndex];
-            diffusionSolid[i][cellIndex] = max(3.07e-7*Foam::exp(-3510/solidTmp[cellIndex]),VSMALL);
+            diffusionSolid[i][cellIndex] = 3.07e-7*Foam::exp(-3510/solidTmp[cellIndex]);
         }
     }else if (ZoneName == "bran")
     {
         forAll(selectedCells, loopIndex)
         {
             const label& cellIndex = selectedCells[loopIndex];
-            diffusionSolid[i][cellIndex] = max(1.77e-4*Foam::exp(-5390/solidTmp[cellIndex]),VSMALL);            
+            diffusionSolid[i][cellIndex] = 1.77e-4*Foam::exp(-5390/solidTmp[cellIndex]);            
         }
     }else if (ZoneName == "endosperm")
     {
         forAll(selectedCells, loopIndex)
         {
             const label& cellIndex = selectedCells[loopIndex];
-            diffusionSolid[i][cellIndex] = max(2.58e-3*Foam::exp(-5680/solidTmp[cellIndex]),VSMALL);            
+            diffusionSolid[i][cellIndex] = 2.58e-3*Foam::exp(-5680/solidTmp[cellIndex]);            
         }
     }
 }

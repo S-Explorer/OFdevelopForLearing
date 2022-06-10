@@ -54,7 +54,7 @@ scalar massTransferCoupledFvPatchScalarField::EvaporationRate(scalar T) const
 //计算舍伍德数
 scalar massTransferCoupledFvPatchScalarField::Shnumber(scalar Re,scalar Sc) const
 {
-    scalar shnumber_ = 2.0+0.552*pow(Re,1/2)*pow(Sc,1/3);
+    scalar shnumber_ = 2.0+0.552*sqrt(Re)*cbrt(Sc);
     return shnumber_;
 }
 //导出物理场
@@ -414,11 +414,11 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
     if (fluid_)
     {
         const fvPatchScalarField& tempnbrk = nbrPatch.lookupPatchField<volScalarField,scalar>("solidKappa");
-        nbrK = tempnbrk;
+        nbrK = tempnbrk.internalField();
     }else
     {
         const fvPatchScalarField& tempnbrk = yp.lookupPatchField<volScalarField,scalar>("solidKappa");
-        K = tempnbrk;
+        K = tempnbrk.internalField();
     }
     mpp.distribute(nbrK);
     //获取deltaCoeffs，体心到面心距离
@@ -474,6 +474,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         const fvPatchScalarField& rhoSolidpatch = nbrPatch.lookupPatchField<volScalarField,scalar>("thermo:rho");
         //获取固体侧的扩散率
         const fvPatchScalarField& Dsolid = nbrPatch.lookupPatchField<volScalarField,scalar>(SolidDivCoe_);
+        scalarField Dsolidinter(Dsolid.internalField());
         //获取固体上的温度值和旧值
         const volScalarField& TSolid = static_cast<const volScalarField&>(nbrField.internalField());
         scalarField TpatchSolidOld(TSolid.internalField());
@@ -526,66 +527,79 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
                                 计算 calculate
         \*-----------------------------------------------------------------*/
         scalarField yvp(yp.size(),Zero);
-		scalarField yvp_s(yp.size(),Zero);       
+		scalarField yvp_s(yp.size(),Zero);
+        Info << " ======= Start calculate of patch =======" << endl;     
         forAll(yp,faceI)
         {
-            scalar TFfluid = TpatchFluid[faceI];
+            // Info << "nbrK : " << nbrK[faceI] << ", K : " << K[faceI] << ", Yisolidtmp : " << Yisolid[faceI] <<" , YpatchSolid:"<< YpatchSolid[faceI] << endl;
+            // scalar TFfluid = Tp[faceI];
+            // Info << "TFfluid" <<TFfluid<< endl;
             scalar Tinfluid = TinPatchFluid[faceI];
+            // Info << "Tinfluid" << Tinfluid<< endl;
             scalar Tinsolid = nbrField[faceI];
+            // Info << "Tinsolid" << Tinsolid<< endl;
             scalar pFfluid = ppatchFluid[faceI];
+            // Info << "pFfluid" << pFfluid<< endl;
             scalar rhofluid = rhoPatchfluid[faceI];
+            // Info << "rhofluid" << rhofluid<< endl;
             scalar rhosolid = rhoSolidpatch[faceI];
+            // Info << "rhosolid" << rhosolid<< endl;
             scalar Yi = Yifluid[faceI];
-            scalar Dsolidtmp = Dsolid[faceI];
+            // Info << "Yi" << Yi<< endl;
+            scalar Dsolidtmp = Dsolidinter[faceI];
+            // Info << "Dsolidtmp" << Dsolidtmp<< endl;
             scalar Yisolidtmp = Yisolid[faceI];
+            // Info << "Yisolidtmp" << Yisolidtmp<< endl;
             liquidRho[faceI] = rhofluid;
-            cp[faceI] = liquid_->Cp(pFfluid,TFfluid);
-            hfg[faceI] = liquid_->hl(pFfluid,TFfluid);
-            // Info << "1" << endl;
+            // Info << "liquidRho[faceI]" << liquidRho[faceI]<< endl;
+            cp[faceI] = liquid_->Cp(pFfluid,Tinfluid);
+            // Info << "cp[faceI]" << cp[faceI]<< endl;
+            hfg[faceI] = liquid_->hl(pFfluid,Tinfluid);
+            // Info << "hfg[faceI]" << hfg[faceI]<< endl;
             //动力粘度计算
-            scalar nuf = muPatchfluid[faceI]/rhofluid;
+            scalar nuf = muPatchfluid[faceI]/rhofluid;            
+            // Info << "nuf, pFfluid: "<< pFfluid <<", TFfluid: "<< TFfluid << endl;
             //蒸汽扩散系数计算
-            const scalar Dpatch = liquid_->D(pFfluid,TFfluid);
+            const scalar Dpatch = liquid_->D(pFfluid,Tinfluid);            
+            // Info << "Dpatch" << endl;
             //获得蒸汽的分子质量
-            const scalar Mv = liquid_->W();
+            const scalar Mv = liquid_->W();            
+            // Info << "Mv" << endl;
             //施密特数
-            scalar Sc = nuf / Dpatch / rhofluid ;
-            const vector Ufluid = UFluid[faceI];
+            scalar Sc = nuf / Dpatch / rhofluid ;            
+            // Info << "Sc" << endl;
+            const vector Ufluid = UFluid[faceI];            
+            // Info << "Ufluid" << endl;
             //雷诺数计算
-            scalar Re = mag(Ufluid) * L_ / nuf;
+            scalar Re = mag(Ufluid) * L_ / nuf;            
+            // Info << "Re" << endl;
             //蒸汽的当前状态的饱和蒸汽压
-            const scalar Psat = liquid_->pv(pFfluid,Tinfluid);
+            const scalar Psat = liquid_->pv(pFfluid,Tinfluid);            
+            // Info << "Psat" << endl;
             //RH计算
-            const scalar invMwmean = Yi/Mv + (1 - Yi) / Mcomp_;
-            scalar Xv = Yi/Mv/invMwmean;
-            scalar RH = min((Xv*pFfluid)/Psat,1.0);
-            // Info << "*** 5 =========== RH:" << RH << endl;
-            scalar Weq;
-            if (RH == scalar(1.0))
-            {
-                Weq = 1;
-            }else
-            {
-                Weq = min(0.295-0.045*Foam::log(-(Tinsolid - 273 + 35)*Foam::log(RH)), 1.0);
-            }
+            const scalar invMwmean = Yi/Mv + (1 - Yi) / Mcomp_;            
+            // Info << "invMwmean" << endl;
+            scalar Xv = Yi/Mv/invMwmean;            
+            // Info << "Xv" << endl;
+            scalar RH = pFfluid * Yi /(Yi + 0.622) / Psat;            
+            // Info << "RH" << endl;
+            scalar Ysat = 0.622 * Psat / (pFfluid - Psat);
+            // Info << "5 RH:" << RH << ", Re: " << Re << ", Dpatch: " << Dpatch << ", Dsolid: " << Dsolidtmp<<endl;
             //计算当前的传质系数 m/s
             const scalar Hm = Dpatch * Shnumber(Re,Sc) / L_;
-            // const scalar Hm_ = Dpatch * Shnumber(Re,Sc) / L_;
-            // Info << "*** 6 ========== Weq" << Weq << endl;
             //单位面积的质量流量 kg/m^2/s
-            dm[faceI] = rhosolid * Hm * max((Yisolidtmp - Weq),0.0);
-            // const scalar dm_ = rhosolid * Hm_ * max((Yisolidtmp - Weq),0.0);
-            // Info << "6" << endl;
-            //传质量           kg
+            dm[faceI] = rhofluid * Hm * max((Ysat - Yi),0.0);
+            //传质量 kg
             mass_[faceI] += dm[faceI] * magSf[faceI] * dt;
-            // Info << "7" << endl;
+            // Info << "7 Hm: "<<Hm << endl;
             //蒸发量的能量      J
             const scalar q = dm[faceI] * dt * magSf[faceI] * hfg[faceI];
             //能量方程源项
             //HsourceSolidpatch[faceI] = q / dt / magSf[faceI] / soliddelta[faceI] ;
             //梯度计算
             yvp[faceI] = dm[faceI]/ Dpatch/ rhofluid;
-			yvp_s[faceI] = scalar(-1.0) * dm[faceI] / Dsolidtmp /rhosolid;
+			yvp_s[faceI] = scalar(-1.0) * dm[faceI] / Dsolidtmp / rhosolid; 
+            // Info << "8 yvp_s: "<< yvp_s[faceI] << endl;
             // const scalar yvp_s_ = scalar(-1.0) * dm_ / Dsolidtmp /rhosolid;
             //获取边界的Δ数值
             // scalar Delta = yp.deltaCoeffs()[faceI];
@@ -610,12 +624,14 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
             // mass_[faceI] += q/hfg[faceI]*dt;
             // //计算梯度值
             // yvp[faceI] = min(dm[faceI]/liquid_->D(pFfluid,TFfluid)/rhofluid,Yi/Delta);
-            /*if (faceI == 200)
+            /*
+            if (faceI == 200)
             {
                 Info << "calculate === Tinfluid:" << Tinfluid
-                     << ", TFfluid:"<< TFfluid
+                     << ", Tinfluid:"<< Tinfluid
                      << ", myKDelta:"<< myKDelta_[faceI]
                      << ", Yi:"<< Yi
+                     << ", Ysat" << Ysat
                      << ", YiSolidtmp:"<< Yisolidtmp
                      << ", rhofluid:"<< rhofluid
                      << ", rhosolid:"<< rhosolid
@@ -628,7 +644,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
                      << ", Sh:"<< Shnumber(Re,Sc)
                      << ", RH:"<< RH
                      << ", Xv:"<< Xv
-                     << ", Weq:"<< Weq
+                     // << ", Weq:"<< Weq
                      << ", Psat:"<< Psat
 		     		 << ", Hm:"<< Hm
                      // << ", Hm_:" << Hm_
@@ -642,6 +658,7 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
                      << "  \n" << endl;
             }*/
         }
+        Info << " ======= End calculate of patch =======" << endl;
         //传递梯度值，流体为正，固体为负，产生传递现象
         YpatchFluid.gradient() = yvp;
         YpatchSolid.gradient() = yvp_s;

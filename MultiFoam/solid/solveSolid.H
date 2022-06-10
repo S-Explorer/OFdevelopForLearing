@@ -33,6 +33,8 @@ if (finalIter)
         hEqn.solve(mesh.solver(h.select(finalIter)));
 
         fvOptions.correct(h);
+
+        FEqn.solve();
     }
 
     thermo.correct();
