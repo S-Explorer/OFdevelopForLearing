@@ -1,0 +1,15 @@
+#!/bin/sh
+cd "${0%/*}" || exit                                # Run from this directory
+. ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
+#------------------------------------------------------------------------------
+restore0Dir
+
+runApplication -s fluid decomposePar -region fluid
+runApplication -s kernel decomposePar -region kernel
+
+runParallel $(getApplication)
+
+runApplication -s fluid reconstructPar -region fluid
+runApplication -s kernel reconstructPar -region kernel
+
+#------------------------------------------------------------------------------i

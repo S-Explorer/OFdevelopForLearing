@@ -127,6 +127,7 @@ int main(int argc, char *argv[])
                     Info << " \n read solid Regions PIMPLE !" << endl;
                 #include "solveSolid.H"
                     Info << " \n solved solid Regions equation !" << endl;
+                #include "updateSolidFields.H"
             }
 
             // Additional loops for energy solution only
