@@ -13,6 +13,12 @@ PtrList<volScalarField> solidKappa(solidRegions.size());
 PtrList<volVectorField> YiGradient(solidRegions.size());
 PtrList<volVectorField> TemGradient(solidRegions.size());
 PtrList<volScalarField> Cp_g(solidRegions.size());
+PtrList<scalar> hull_a(solidRegions.size());
+PtrList<scalar> hull_b(solidRegions.size());
+PtrList<scalar> bran_a(solidRegions.size());
+PtrList<scalar> bran_b(solidRegions.size());
+PtrList<scalar> endo_a(solidRegions.size());
+PtrList<scalar> endo_b(solidRegions.size());
 
 // Populate solid field pointer lists
 forAll(solidRegions, i)
@@ -220,7 +226,7 @@ forAll(solidRegions, i)
     );
 
     Info << "update the solid kappa ! \n" << endl;
-
+    //scalar tmp_kappa(dictionSolid[i].lookupOrDefault<scalar>("kappa", 1.0));
     tmp<volScalarField> tmpKappa = (0.0637+0.0958*interSolid[i])/(0.656-0.475*interSolid[i]);
 
     solidKappa[i].primitiveFieldRef() = tmpKappa();
@@ -229,4 +235,11 @@ forAll(solidRegions, i)
 
     tmp<volScalarField> tmpCp = thermos[i].Cp();
     solidCp[i] = tmpCp();
+
+    hull_a.set(i,new scalar(dictionSolid[i].lookupOrDefault<scalar>("hull_a",4.84e2)));
+    hull_b.set(i,new scalar(dictionSolid[i].lookupOrDefault<scalar>("hull_b",7380.8)));
+    bran_a.set(i,new scalar(dictionSolid[i].lookupOrDefault<scalar>("bran_a",7.97e-1)));
+    bran_b.set(i,new scalar(dictionSolid[i].lookupOrDefault<scalar>("bran_b",5110.0)));
+    endo_a.set(i,new scalar(dictionSolid[i].lookupOrDefault<scalar>("endo_a",2.57e-3)));
+    endo_b.set(i,new scalar(dictionSolid[i].lookupOrDefault<scalar>("endo_b",2880.0)));
 }

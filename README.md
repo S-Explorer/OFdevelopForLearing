@@ -1,7 +1,7 @@
 # OFdevelopForLearing
-OpenFOAM 开发的 solver ：针对颗粒干燥（[博客地址](https://s-explorer.github.io/posts/kernelPhaseTrasition4FOAM/)）
+OpenFOAM solver ：针对谷粒干燥（[博客地址](https://s-explorer.github.io/posts/kernelPhaseTrasition4FOAM/)）
 
-- ~~MixedBCforDry 包含了颗粒的传质传热过程的泛化的一种边界条件，其假设水分在组分间的传递全部发生相变。~~
+- newBC：conjugate heat and mass transfer BC
 - MultiFoam 依据chtMultiRegionFoam更改，添加了物料运输相关内容。
 
 ### 2022-4-18
@@ -16,10 +16,6 @@ valueFraction() = KDeltaNbr/(KDeltaNbr + myKDelta_);
 //refValue() = (KDeltaNbr*nbrIntFld + mpCpdt*TOld + dmHfg) / alpha ;
 refValue() = nbrIntFld;
 ```
-
-更正了case算例，目前testcase为单球形颗粒的传质传热，颗粒努塞尔数 > 200，选择的湍流模型为k-ε双方程模型。
-
-![](./testcase/sphere/kernel_sphere.png)
 
 ### 2022-5-13
 
@@ -49,13 +45,36 @@ dm[faceI] = rhosolid * Hm * (Yisolidtmp - Weq)
 最终的界面的传质速率取决去其中最小的一个量。
 
 对于边界上的更新：
-$$
-k_f\Delta_f(T_f - T_{pf}) = -k_s\Delta_s(T_s-T_{ps})-\dot{m}H_{fg}-mC_p(T_f-T_p^{old})
-$$
+
+![](./docs/img/BC_heat.png)
+
 转换为 `mixed`形式可以得到：
-$$
-\alpha = k_f\Delta_f + k_s\Delta_s \Rightarrow原方程\\
-T_f = \frac{k_s\Delta_sT_s+\dot{m}H_{fg}-mC_pT_p^{old}}{\alpha}+\frac{k_f\Delta_f+mC_p}{\alpha}T_f
-$$
+
+![](./docs/img/BC_mix.png)
+
+### 2023-11-5
+
+添加`CMakeLists`，适配版本为`OF2212`。
+
+```bash
+# 先启动OF环境
+mkdir build; cd build
+cmake ..
+make -j{parallel threads}
+# 仅编译求解器 make target
+make kernelPhaseTransitionFOAM 
+```
+
+添加算例配置文件中谷粒三层结构的相关参数读取，在`constant/solid/SolidProperties`文件内：
+
+```
+hull_a	4.84e2
+hull_b	7380.8
+bran_a	7.97e-1
+bran_b	5110.0
+endo_a	2.57e-3
+endo_b	2880.0
+```
+
 
 

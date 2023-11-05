@@ -98,7 +98,7 @@ massTransferCoupledFvPatchScalarField::massTransferCoupledFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 ):
 mixedFvPatchScalarField(p,iF),
-temperatureCoupledBase(patch(),"undefined","undefined","undefined-K","undefined-alpha"),
+temperatureCoupledBase(patch(),temperatureCoupledBase::mtFluidThermo),
 pName_("p"),
 UName_("U"),
 rhoName_("rho"),
@@ -445,8 +445,8 @@ void massTransferCoupledFvPatchScalarField::updateCoeffs()
         //const fvPatchScalarField& VolSolidPatchBoundary = nbrPatch.lookupPatchField<volScalarField,scalar>("cellVolume");
         //const scalarField& VolSolidPatch = VolSolidPatchBoundary.patchInternalField();
         //获取边界的源项
-        fvPatchScalarField& HsourceSolidpatch = const_cast<fvPatchScalarField&>
-        (refCast<const fvPatchScalarField>(nbrPatch.lookupPatchField<volScalarField,scalar>(sourceTerm_)));
+        //fvPatchScalarField& HsourceSolidpatch = const_cast<fvPatchScalarField&>
+        //(refCast<const fvPatchScalarField>(nbrPatch.lookupPatchField<volScalarField,scalar>(sourceTerm_)));
         //获取固体的密度
         const fvPatchScalarField& rhoSolidpatch = nbrPatch.lookupPatchField<volScalarField,scalar>("thermo:rho");
         //获取固体侧的扩散率

@@ -17,6 +17,13 @@ volScalarField& solidTmp = thermo.T();
 //calculate ther solid diffusion value 
 dimensionedScalar TemOnes("ones",thermos[i].T().dimensions(),1.0);
 
+auto hullA = hull_a[i];
+auto hullB = hull_b[i];
+auto branA = bran_a[i];
+auto branB = bran_b[i];
+auto endoA = endo_a[i];
+auto endoB = endo_b[i];
+
 forAll(mesh.cellZones(),cellZone)
 {
     const labelList& selectedCells(mesh.cellZones()[cellZone]);
@@ -26,21 +33,21 @@ forAll(mesh.cellZones(),cellZone)
         forAll(selectedCells, loopIndex)
         {
             const label& cellIndex = selectedCells[loopIndex];
-            diffusionSolid[i][cellIndex] = 484*Foam::exp(-7380.8/solidTmp[cellIndex])/3600.0;
+            diffusionSolid[i][cellIndex] = hullA*Foam::exp(-hullB/solidTmp[cellIndex])/3600.0;
         }
     }else if (ZoneName == "bran")
     {
         forAll(selectedCells, loopIndex)
         {
             const label& cellIndex = selectedCells[loopIndex];
-            diffusionSolid[i][cellIndex] = 0.797*Foam::exp(-5110.0/solidTmp[cellIndex])/3600.0;            
+            diffusionSolid[i][cellIndex] = branA*Foam::exp(-branB/solidTmp[cellIndex])/3600.0;
         }
     }else if (ZoneName == "endosperm")
     {
         forAll(selectedCells, loopIndex)
         {
             const label& cellIndex = selectedCells[loopIndex];
-            diffusionSolid[i][cellIndex] = 2.57e-3*Foam::exp(-2880.0/solidTmp[cellIndex])/3600.0;            
+            diffusionSolid[i][cellIndex] = endoA*Foam::exp(-endoB/solidTmp[cellIndex])/3600.0;
         }
     }
 }

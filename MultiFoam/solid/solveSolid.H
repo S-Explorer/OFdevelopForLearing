@@ -20,6 +20,7 @@ if (finalIter)
         fvScalarMatrix hEqn
         (
             fvm::ddt(rho, h)
+            // - fvm::ddt(rho(1-interF*cp_g/cp), h)
           - fvm::laplacian(kappa/cp, h, "laplacian(alpha,h)")
           - fvc::ddt(rho * cp/ cp_g, interF)
           ==
